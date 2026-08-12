@@ -30,8 +30,10 @@ export default function PlayerAvatar({
         </div>
       )}
 
-      {/* Avatar Token Circle */}
-      <div className="relative">
+      {/* Avatar Token Circle with Active Turn Gold Ring Glow */}
+      <div className={`relative rounded-full transition-all ${
+        isTurn ? 'ring-4 ring-amber-400 shadow-[0_0_20px_rgba(250,204,21,0.85)] animate-pulse' : ''
+      }`}>
         <VipAvatar name={name} isTurn={isTurn} size={size} />
 
         {/* Host Crown Badge */}
@@ -49,7 +51,7 @@ export default function PlayerAvatar({
 
       {/* Legible Name & Points Dark Pill */}
       <div
-        className={`mt-1 px-2 py-0.5 rounded-full border text-center transition-all max-w-[85px] sm:max-w-[105px] truncate shadow-md ${
+        className={`mt-1.5 px-2 py-0.5 rounded-full border text-center transition-all max-w-[85px] sm:max-w-[105px] truncate shadow-md ${
           isTurn
             ? 'bg-gradient-to-r from-amber-950/90 via-zinc-900/95 to-amber-950/90 border-amber-400/90 text-amber-300 shadow-gold-glow font-extrabold'
             : 'bg-black/85 backdrop-blur-sm border-zinc-800/90 text-zinc-300 font-semibold'

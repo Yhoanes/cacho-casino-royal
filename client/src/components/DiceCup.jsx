@@ -40,7 +40,7 @@ export default function DiceCup({
   } = turnState;
 
   return (
-    <div className="flex flex-col items-center justify-center p-2 relative">
+    <div className="flex flex-col items-center justify-center p-1 relative">
       {/* 2.5D Cacho Leather Cup Graphic (Rendered ONLY while isRolling) */}
       {isRolling && (
         <div className="relative mb-4 z-20 animate-fade-in">
@@ -68,16 +68,16 @@ export default function DiceCup({
         </div>
       )}
 
-      {/* Badges Overlay */}
-      <div className="flex flex-wrap items-center justify-center gap-2 mb-3 z-10">
+      {/* Badges Overlay (Real vs Armada / Active Canto) */}
+      <div className="flex flex-wrap items-center justify-center gap-2 mb-2 z-10">
         {hasRolledThisTurn && (
           <div>
             {isReal ? (
-              <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 text-zinc-950 font-black text-xs shadow-gold-glow flex items-center gap-1 border border-yellow-200 animate-bounce-short">
+              <span className="px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 text-zinc-950 font-black text-xs shadow-gold-glow flex items-center gap-1 border border-yellow-200 animate-bounce-short">
                 <Sparkles className="w-3.5 h-3.5 fill-current text-zinc-950" /> ¡TIRO REAL! (5 Dados)
               </span>
             ) : (
-              <span className="px-3 py-1 rounded-full bg-zinc-900/90 text-zinc-300 font-semibold text-xs border border-zinc-700/80 shadow backdrop-blur-md">
+              <span className="px-3 py-0.5 rounded-full bg-zinc-900/90 text-zinc-300 font-semibold text-xs border border-zinc-700/80 shadow backdrop-blur-md">
                 Jugada Armada
               </span>
             )}
@@ -87,7 +87,7 @@ export default function DiceCup({
         {activeCanto && (
           <div>
             <span
-              className={`px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 border shadow-lg ${
+              className={`px-3 py-0.5 rounded-full text-xs font-black flex items-center gap-1 border shadow-lg ${
                 cantoFailed
                   ? 'bg-rose-950/90 text-rose-300 border-rose-600 shadow-rose-900/50'
                   : 'bg-amber-950/90 text-amber-300 border-amber-400 animate-pulse shadow-gold-glow'
@@ -100,20 +100,8 @@ export default function DiceCup({
         )}
       </div>
 
-      {/* 2.5D Hiperrealista Dice Tray (Always Clean & Visible on Felt Table) */}
-      <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-4 sm:p-5 border border-emerald-500/20 shadow-2xl z-10">
-        <div className="text-center mb-3">
-          <p className="text-[11px] uppercase tracking-widest text-emerald-400/90 font-bold font-mono">
-            {isMyTurn
-              ? hasRolledThisTurn
-                ? rollsLeft > 0
-                  ? '👇 Toca los dados para GUARDAR / LIBERAR'
-                  : '⚠️ Sin tiros. Anota o tacha casilla'
-                : '🎲 Presiona Lanzar para iniciar turno'
-              : '⏳ Esperando la jugada del oponente...'}
-          </p>
-        </div>
-
+      {/* Pure 5 Physical Dice Tray */}
+      <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-3 sm:p-4 border border-emerald-500/20 shadow-2xl z-10">
         <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4">
           {dice.map((val, idx) => {
             const isKept = keptDice[idx];
@@ -151,7 +139,7 @@ export default function DiceCup({
 
                 {/* Keep Lock Indicator */}
                 {hasRolledThisTurn && (
-                  <div className="mt-1.5 flex items-center justify-center">
+                  <div className="mt-1 flex items-center justify-center">
                     {isKept ? (
                       <span className="px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/50 text-[9px] font-black flex items-center gap-0.5 shadow-sm">
                         <Lock className="w-2.5 h-2.5 text-amber-400" /> Guardado
