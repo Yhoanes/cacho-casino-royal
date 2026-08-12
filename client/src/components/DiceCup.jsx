@@ -1,5 +1,5 @@
-import React from 'react';
-import { Lock, Unlock, Sparkles, Target, Dices } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Lock, Unlock, Sparkles, Target, Dices, Smartphone } from 'lucide-react';
 
 const PIP_POSITIONS = {
   1: ['col-start-2 row-start-2'],
@@ -29,6 +29,7 @@ export default function DiceCup({
   onToggleKeep,
   isRolling,
   activeCanto,
+  onTriggerRoll,
 }) {
   const {
     dice = [1, 1, 1, 1, 1],
@@ -37,47 +38,134 @@ export default function DiceCup({
     rollsLeft,
     hasRolledThisTurn,
     cantoFailed,
+    cantoResolution,
   } = turnState;
+
+  const [isShakingMotion, setIsShakingMotion] = useState(false);
+
+  // Device Motion API (Shake to Roll Mobile Detection)
+  useEffect(() => {
+    if (!isMyTurn || rollsLeft <= 0 || cantoFailed || isRolling || cantoResolution?.active) return;
+
+    let lastX = null;
+    let lastY = null;
+    let lastZ = null;
+    let lastTime = Date.now();
+    let shakeTimeout = null;
+
+    const handleMotion = (event) => {
+      const current = event.accelerationIncludingGravity;
+      if (!current) return;
+
+      const currentTime = Date.now();
+      const diffTime = currentTime - lastTime;
+
+      if (diffTime > 100) {
+        const x = current.x || 0;
+        const y = current.y || 0;
+        const z = current.z || 0;
+
+        if (lastX !== null) {
+          const speed = (Math.abs(x - lastX) + Math.abs(y - lastY) + Math.abs(z - lastZ)) / diffTime * 1000;
+
+          if (speed > 18) {
+            setIsShakingMotion(true);
+
+            // Trigger haptic feedback if supported
+            if (navigator.vibrate) {
+              navigator.vibrate([40, 30, 40]);
+            }
+
+            clearTimeout(shakeTimeout);
+            shakeTimeout = setTimeout(() => {
+              setIsShakingMotion(false);
+              if (onTriggerRoll) {
+                onTriggerRoll();
+              }
+            }, 600);
+          }
+        }
+
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+        lastTime = currentTime;
+      }
+    };
+
+    if (window.DeviceMotionEvent) {
+      window.addEventListener('devicemotion', handleMotion, false);
+    }
+
+    return () => {
+      if (window.DeviceMotionEvent) {
+        window.removeEventListener('devicemotion', handleMotion, false);
+      }
+      clearTimeout(shakeTimeout);
+    };
+  }, [isMyTurn, rollsLeft, cantoFailed, isRolling, cantoResolution, onTriggerRoll]);
+
+  const canRollNow = isMyTurn && rollsLeft > 0 && !cantoFailed && !isRolling && !cantoResolution?.active;
 
   return (
     <div className="flex flex-col items-center justify-center p-1 relative">
-      {/* 2.5D Cacho Leather Cup Graphic (Rendered ONLY while isRolling) */}
-      {isRolling && (
-        <div className="relative mb-4 z-20 animate-fade-in">
-          <div className="w-32 h-36 rounded-b-[2.5rem] rounded-t-xl bg-gradient-to-b from-[#54250c] via-[#381606] to-[#1a0802] border-4 border-amber-900/90 shadow-2d-cup flex flex-col items-center justify-between animate-cup-shake scale-110">
+      {/* 2.5D Cacho Leather Cup Graphic (Rendered when rolling OR when preparing to roll) */}
+      {(isRolling || isShakingMotion || !hasRolledThisTurn) && (
+        <div
+          onClick={() => canRollNow && onTriggerRoll && onTriggerRoll()}
+          className={`relative mb-4 z-20 transition-all ${
+            canRollNow ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'
+          }`}
+          title={canRollNow ? 'Haz clic o agita tu teléfono para lanzar los dados' : 'Cubilete Cacho'}
+        >
+          <div
+            className={`w-32 h-36 sm:w-36 sm:h-40 rounded-b-[2.5rem] rounded-t-xl bg-gradient-to-b from-[#54250c] via-[#381606] to-[#1a0802] border-4 border-amber-900/90 shadow-2d-cup flex flex-col items-center justify-between transition-transform ${
+              isRolling || isShakingMotion ? 'animate-cup-shake scale-110' : ''
+            }`}
+          >
             {/* Leather Stitched Upper Rim */}
-            <div className="w-full h-4 bg-gradient-to-r from-amber-900 via-amber-800 to-amber-950 border-b-2 border-amber-950/80 rounded-t-lg shadow-inner flex items-center justify-center">
+            <div className="w-full h-4 sm:h-5 bg-gradient-to-r from-amber-900 via-amber-800 to-amber-950 border-b-2 border-amber-950/80 rounded-t-lg shadow-inner flex items-center justify-center">
               <div className="w-4/5 h-0.5 border-t border-dashed border-amber-500/40" />
             </div>
 
             {/* Golden Casino Emblem */}
             <div className="my-auto text-center px-2">
-              <div className="w-8 h-8 mx-auto mb-1 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center shadow-gold-glow">
-                <Dices className="w-5 h-5 text-amber-400 stroke-[2.5]" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-1 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center shadow-gold-glow">
+                <Dices className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 stroke-[2.5]" />
               </div>
-              <span className="text-xl font-black font-cinzel text-gold-shine tracking-widest drop-shadow-lg block">
+              <span className="text-xl sm:text-2xl font-black font-cinzel text-gold-shine tracking-widest drop-shadow-lg block">
                 CACHO
               </span>
             </div>
 
             {/* Leather Bottom Rim */}
-            <div className="w-full h-3 bg-zinc-950/90 rounded-b-[2rem] border-t border-amber-900/50 flex items-center justify-center">
+            <div className="w-full h-3 sm:h-4 bg-zinc-950/90 rounded-b-[2rem] border-t border-amber-900/50 flex items-center justify-center">
               <div className="w-2/3 h-0.5 border-t border-dashed border-amber-700/30" />
             </div>
           </div>
+
+          {/* Shake Motion Visual Helper Pill */}
+          {canRollNow && (
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap z-30">
+              <span className="px-3 py-1 rounded-full bg-black/85 backdrop-blur-md text-amber-300 border border-amber-400/80 text-[10px] sm:text-xs font-bold flex items-center gap-1.5 shadow-gold-glow animate-pulse">
+                <Smartphone className="w-3.5 h-3.5 text-amber-400" />
+                <span>📱 Agita tu teléfono o toca para lanzar</span>
+              </span>
+            </div>
+          )}
         </div>
       )}
 
       {/* Badges Overlay (Real vs Armada / Active Canto) */}
-      <div className="flex flex-wrap items-center justify-center gap-2 mb-2 z-10">
+      <div className="flex flex-wrap items-center justify-center gap-2 mb-2.5 z-10">
         {hasRolledThisTurn && (
           <div>
             {isReal ? (
-              <span className="px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 text-zinc-950 font-black text-xs shadow-gold-glow flex items-center gap-1 border border-yellow-200 animate-bounce-short">
+              <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 text-zinc-950 font-black text-xs shadow-gold-glow flex items-center gap-1 border border-yellow-200 animate-bounce-short">
                 <Sparkles className="w-3.5 h-3.5 fill-current text-zinc-950" /> ¡TIRO REAL! (5 Dados)
               </span>
             ) : (
-              <span className="px-3 py-0.5 rounded-full bg-zinc-900/90 text-zinc-300 font-semibold text-xs border border-zinc-700/80 shadow backdrop-blur-md">
+              <span className="px-3 py-1 rounded-full bg-zinc-900/90 text-zinc-300 font-semibold text-xs border border-zinc-700/80 shadow backdrop-blur-md">
                 Jugada Armada
               </span>
             )}
@@ -87,7 +175,7 @@ export default function DiceCup({
         {activeCanto && (
           <div>
             <span
-              className={`px-3 py-0.5 rounded-full text-xs font-black flex items-center gap-1 border shadow-lg ${
+              className={`px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 border shadow-lg ${
                 cantoFailed
                   ? 'bg-rose-950/90 text-rose-300 border-rose-600 shadow-rose-900/50'
                   : 'bg-amber-950/90 text-amber-300 border-amber-400 animate-pulse shadow-gold-glow'
@@ -101,8 +189,8 @@ export default function DiceCup({
       </div>
 
       {/* Pure 5 Physical Dice Tray */}
-      <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-3 sm:p-4 border border-emerald-500/20 shadow-2xl z-10">
-        <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4">
+      <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-3.5 sm:p-5 border border-emerald-500/20 shadow-2xl z-10">
+        <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 md:gap-5">
           {dice.map((val, idx) => {
             const isKept = keptDice[idx];
             const canToggle = isMyTurn && hasRolledThisTurn && rollsLeft > 0 && !cantoFailed;
@@ -117,7 +205,7 @@ export default function DiceCup({
               >
                 {/* 2.5D Bone / Ivory Die Cube */}
                 <div
-                  className={`w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-2xl p-1.5 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform ${
+                  className={`w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18 rounded-2xl p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform ${
                     isRolling && !isKept ? 'animate-dice-roll' : ''
                   } ${
                     isKept
@@ -128,7 +216,7 @@ export default function DiceCup({
                   {PIP_POSITIONS[val]?.map((posClass, pIdx) => (
                     <span
                       key={pIdx}
-                      className={`w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full ${posClass} ${
+                      className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 rounded-full ${posClass} ${
                         isKept
                           ? 'bg-amber-950 die-pip-sunken-kept'
                           : 'bg-zinc-900 die-pip-sunken'
@@ -141,11 +229,11 @@ export default function DiceCup({
                 {hasRolledThisTurn && (
                   <div className="mt-1 flex items-center justify-center">
                     {isKept ? (
-                      <span className="px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/50 text-[9px] font-black flex items-center gap-0.5 shadow-sm">
+                      <span className="px-2 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/50 text-[9px] sm:text-[10px] font-black flex items-center gap-0.5 shadow-sm">
                         <Lock className="w-2.5 h-2.5 text-amber-400" /> Guardado
                       </span>
                     ) : (
-                      <span className="px-1.5 py-0.5 rounded bg-zinc-900/80 text-zinc-400 text-[9px] font-medium flex items-center gap-0.5 border border-zinc-800">
+                      <span className="px-2 py-0.5 rounded bg-zinc-900/80 text-zinc-400 text-[9px] sm:text-[10px] font-medium flex items-center gap-0.5 border border-zinc-800">
                         <Unlock className="w-2.5 h-2.5" /> Libre
                       </span>
                     )}

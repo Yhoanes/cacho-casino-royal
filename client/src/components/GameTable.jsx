@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Dices, ScrollText, BarChart3, DoorOpen } from 'lucide-react';
+import { LogOut, Dices, ScrollText, BarChart3, DoorOpen, LayoutGrid } from 'lucide-react';
 import DiceCup from './DiceCup';
 import MichiBoard from './MichiBoard';
 import ActionPanel from './ActionPanel';
@@ -10,6 +10,7 @@ import SocialControlsFAB from './SocialControlsFAB';
 import PlayerAvatar from './PlayerAvatar';
 import GameLogsModal from './GameLogsModal';
 import OpponentsOverviewModal from './OpponentsOverviewModal';
+import MyBoardModal from './MyBoardModal';
 
 export default function GameTable({
   room,
@@ -31,6 +32,7 @@ export default function GameTable({
   const [isCantoModalOpen, setIsCantoModalOpen] = useState(false);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
   const [isOpponentsOverviewOpen, setIsOpponentsOverviewOpen] = useState(false);
+  const [isMyBoardModalOpen, setIsMyBoardModalOpen] = useState(false);
   const [showCantoResolutionOverlay, setShowCantoResolutionOverlay] = useState(false);
 
   const { players = [], currentTurnIndex, turnState = {}, status, winner, winReason, hostUserId } = room;
@@ -56,6 +58,16 @@ export default function GameTable({
       setShowCantoResolutionOverlay(false);
     }
   }, [turnState?.cantoResolution?.active]);
+
+  // Auto-open MyBoardModal when local turn finishes all rolls or canto fails
+  useEffect(() => {
+    if (isMyTurn && (turnState.rollsLeft === 0 || turnState.cantoFailed)) {
+      const timer = setTimeout(() => {
+        setIsMyBoardModalOpen(true);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isMyTurn, turnState.rollsLeft, turnState.cantoFailed]);
 
   const handleRollClick = (cantoData = null) => {
     if (!isMyTurn || turnState.rollsLeft <= 0) return;
@@ -118,14 +130,29 @@ export default function GameTable({
               isMe={isMe}
               activeEmote={activeEmotes[p.userId]}
               size="sm"
-              onClick={() => setIsOpponentsOverviewOpen(true)}
+              onClick={() => isMe ? setIsMyBoardModalOpen(true) : setIsOpponentsOverviewOpen(true)}
             />
           );
         })}
       </div>
 
-      {/* 2. HUD Top-Right Controls Bar (3 Floating Buttons: Historial, Espiar, Salir) */}
+      {/* 2. HUD Top-Right Controls Bar (4 Floating Buttons: Mi Tablero, Historial, Espiar, Salir) */}
       <div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex items-center gap-2 sm:gap-3 z-50">
+        {/* Mi Tablero Floating Button (📋) */}
+        <button
+          type="button"
+          onClick={() => setIsMyBoardModalOpen(true)}
+          className={`p-2.5 sm:p-3 rounded-2xl border transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1.5 font-black text-xs cursor-pointer ${
+            isMyTurn && turnState.rollsLeft === 0
+              ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 text-zinc-950 border-amber-300 animate-bounce-short shadow-gold-glow'
+              : 'bg-zinc-900/90 border-zinc-700/80 hover:border-amber-400 text-amber-300'
+          }`}
+          title="Ver / Desplegar Mi Tablero Michi"
+        >
+          <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+          <span className="hidden md:inline font-cinzel">Mi Tablero</span>
+        </button>
+
         {/* Historial de Jugadas Button (📜) */}
         <button
           type="button"
@@ -161,7 +188,7 @@ export default function GameTable({
 
       {/* 3. Center Arena Stage (Proportional Dice Tray & Michi Board Centering) */}
       <main className="absolute top-[48%] sm:top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center gap-4 sm:gap-6 md:gap-8 w-full max-w-md sm:max-w-lg md:max-w-xl px-3 z-10">
-        {/* Pure Physical Dice Tray */}
+        {/* Interactive Physical Dice Tray & Device Motion Cacho Cup */}
         <div className="w-full flex justify-center transform scale-95 sm:scale-100 md:scale-105 transition-transform">
           <DiceCup
             turnState={turnState}
@@ -169,10 +196,11 @@ export default function GameTable({
             onToggleKeep={onToggleKeepDie}
             isRolling={isRolling}
             activeCanto={turnState.activeCanto}
+            onTriggerRoll={() => handleRollClick()}
           />
         </div>
 
-        {/* Local Player Michi Board (Perfectly Centered & Proportional) */}
+        {/* Local Player Michi Board (Always Visible & Collapsible in Modal) */}
         <div className="w-full max-w-md sm:max-w-lg md:max-w-xl bg-transparent border-0 p-0 shadow-none scale-95 sm:scale-100 md:scale-105 origin-center transition-transform pb-12 sm:pb-14">
           <MichiBoard
             player={localPlayer}
@@ -192,12 +220,12 @@ export default function GameTable({
         {isMyTurn ? (
           turnState.hasRolledThisTurn ? (
             turnState.rollsLeft > 0 ? (
-              <span>👇 Toca los dados para Guardar o Liberar</span>
+              <span>👇 Toca dados para Guardar o Agita tu móvil para Lanzar</span>
             ) : (
               <span>⚠️ Sin tiros. Selecciona casilla para anotar o tachar</span>
             )
           ) : (
-            <span>🎲 ¡Es tu turno! Lanza los dados</span>
+            <span>🎲 ¡Es tu turno! Agita tu teléfono o presiona Lanzar</span>
           )
         ) : (
           <span>⏳ Turno de {currentPlayer.name}...</span>
@@ -229,6 +257,18 @@ export default function GameTable({
         chatMessages={chatMessages}
         onSendMessage={onSendMessage}
         onSendEmote={onSendEmote}
+      />
+
+      {/* Local Player "Mi Tablero" Desplegable Modal */}
+      <MyBoardModal
+        isOpen={isMyBoardModalOpen}
+        onClose={() => setIsMyBoardModalOpen(false)}
+        player={localPlayer}
+        isCurrentTurnPlayer={isMyTurn}
+        turnState={turnState}
+        scoringOptions={scoringOptions}
+        onScore={onScoreCategory}
+        onCross={onCrossCategory}
       />
 
       {/* Opponents Overview Modal (Espiar Rivales - 📊) */}
