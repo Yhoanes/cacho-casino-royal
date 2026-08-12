@@ -102,8 +102,8 @@ export default function GameTable({
 
   return (
     <div className="bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-700 via-emerald-950 to-zinc-950 relative w-full h-[100dvh] overflow-hidden select-none font-outfit">
-      {/* 1. HUD Left Dock (Full Player List including Local Player + Opponents) */}
-      <div className="absolute left-3 sm:left-4 top-16 sm:top-20 flex flex-col gap-4 sm:gap-6 z-40 max-h-[75vh] overflow-y-auto pr-1">
+      {/* 1. HUD Left Dock (Unclipped Avatars Floating Over Everything - z-[999]) */}
+      <div className="fixed left-3 sm:left-5 top-16 sm:top-20 flex flex-col gap-4 sm:gap-5 z-[999] overflow-visible pointer-events-auto">
         {allPlayers.map((p) => {
           const pIsTurn = currentPlayer.userId ? currentPlayer.userId === p.userId : currentPlayer.socketId === p.socketId;
           const pIsHost = Boolean(hostUserId && p.userId && hostUserId === p.userId);
@@ -172,7 +172,7 @@ export default function GameTable({
           />
         </div>
 
-        {/* Local Player Transparent Michi Board (No box frame, sitting directly on emerald felt) */}
+        {/* Local Player Transparent Michi Board */}
         <div className="w-full max-w-sm sm:max-w-md bg-transparent border-0 p-0 shadow-none scale-85 sm:scale-95 md:scale-100 origin-top transition-transform pb-14 sm:pb-16">
           <MichiBoard
             player={localPlayer}
@@ -187,15 +187,21 @@ export default function GameTable({
         </div>
       </main>
 
-      {/* 4. Single Premium Floating Status Pill */}
-      <div className="absolute bottom-[15%] left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-md border border-amber-400/80 text-amber-300 px-6 py-2 rounded-full text-xs sm:text-sm font-bold shadow-xl z-30 pointer-events-none whitespace-nowrap">
-        {isMyTurn
-          ? turnState.hasRolledThisTurn
-            ? turnState.rollsLeft > 0
-              ? '👇 Toca los dados para Guardar o Liberar'
-              : '⚠️ Sin tiros. Selecciona casilla para anotar o tachar'
-            : '🎲 ¡Es tu turno! Lanza los dados'
-          : `⏳ Turno de ${currentPlayer.name}...`}
+      {/* 4. Single Floating Status Pill */}
+      <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-md border border-amber-400/80 text-amber-300 px-6 py-2 rounded-full text-xs sm:text-sm font-bold shadow-xl z-30 pointer-events-none whitespace-nowrap flex items-center gap-2">
+        {isMyTurn ? (
+          turnState.hasRolledThisTurn ? (
+            turnState.rollsLeft > 0 ? (
+              <span>👇 Toca los dados para Guardar o Liberar</span>
+            ) : (
+              <span>⚠️ Sin tiros. Selecciona casilla para anotar o tachar</span>
+            )
+          ) : (
+            <span>🎲 ¡Es tu turno! Lanza los dados</span>
+          )
+        ) : (
+          <span>⏳ Turno de {currentPlayer.name}...</span>
+        )}
       </div>
 
       {/* 5. HUD Bottom Action Controls (Lanzar Cacho & Cantar Buttons) */}

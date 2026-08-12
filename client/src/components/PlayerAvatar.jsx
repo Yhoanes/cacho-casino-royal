@@ -19,13 +19,13 @@ export default function PlayerAvatar({
   return (
     <div
       onClick={onClick || undefined}
-      className={`pointer-events-auto relative overflow-visible flex flex-col items-center select-none shrink-0 ${
+      className={`pointer-events-auto relative overflow-visible flex flex-col items-center select-none shrink-0 z-[999] ${
         onClick ? 'cursor-pointer hover:scale-105 active:scale-95 transition-transform' : ''
       } ${className}`}
     >
-      {/* Floating Animated Emote Overlay (Projected to the RIGHT towards table center, z-[9999], no clipping) */}
+      {/* Floating Animated Emote Overlay (Projected to the RIGHT, z-[99999], 100% unclipped) */}
       {activeEmote && (
-        <div className="absolute top-1/2 left-[120%] -translate-y-1/2 text-5xl md:text-6xl z-[9999] animate-bounce pointer-events-none whitespace-nowrap drop-shadow-[0_10px_20px_rgba(0,0,0,0.9)]">
+        <div className="absolute top-1/2 left-[115%] -translate-y-1/2 text-5xl sm:text-6xl z-[99999] animate-bounce pointer-events-none whitespace-nowrap drop-shadow-[0_10px_25px_rgba(0,0,0,0.95)]">
           {activeEmote}
         </div>
       )}
@@ -38,7 +38,7 @@ export default function PlayerAvatar({
 
         {/* Host Crown Badge */}
         {isHost && (
-          <div className="absolute -top-2 -right-1 p-0.5 rounded-full bg-amber-950 border border-amber-400 shadow-sm z-30" title="Anfitrión">
+          <div className="absolute -top-2.5 -right-1 p-0.5 rounded-full bg-amber-950 border border-amber-400 shadow-sm z-30" title="Anfitrión">
             <Crown className="w-3 h-3 text-amber-400 fill-amber-400" />
           </div>
         )}
