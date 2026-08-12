@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Dices, ScrollText } from 'lucide-react';
+import { LogOut, Dices, ScrollText, Users, Sparkles } from 'lucide-react';
 import DiceCup from './DiceCup';
 import MichiBoard from './MichiBoard';
 import ActionPanel from './ActionPanel';
@@ -9,23 +9,6 @@ import HudAnnouncement from './HudAnnouncement';
 import SocialControlsFAB from './SocialControlsFAB';
 import PlayerAvatar from './PlayerAvatar';
 import GameLogsModal from './GameLogsModal';
-
-const getOpponentPositionClass = (index) => {
-  switch (index) {
-    case 0:
-      return 'absolute top-14 sm:top-16 left-1/2 -translate-x-1/2 z-20';
-    case 1:
-      return 'absolute top-24 sm:top-28 left-2 sm:left-6 z-20';
-    case 2:
-      return 'absolute top-24 sm:top-28 right-2 sm:right-6 z-20';
-    case 3:
-      return 'absolute top-[38%] sm:top-[40%] left-2 sm:left-6 -translate-y-1/2 z-20';
-    case 4:
-      return 'absolute top-[38%] sm:top-[40%] right-2 sm:right-6 -translate-y-1/2 z-20';
-    default:
-      return 'absolute top-14 left-1/2 -translate-x-1/2 z-20';
-  }
-};
 
 export default function GameTable({
   room,
@@ -48,7 +31,7 @@ export default function GameTable({
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
   const [showCantoResolutionOverlay, setShowCantoResolutionOverlay] = useState(false);
 
-  const { players = [], currentTurnIndex, turnState = {}, status, winner, winReason, hostUserId } = room;
+  const { players = [], currentTurnIndex, turnState = {}, status, winner, winReason, hostUserId, gameLogs = [] } = room;
 
   const currentPlayer = players[currentTurnIndex] || {};
   const localPlayer = players.find((p) => (p.userId ? p.userId === currentUserId : p.socketId === currentSocketId)) || currentPlayer;
@@ -57,6 +40,11 @@ export default function GameTable({
 
   // Opponents list (excluding local player)
   const opponents = players.filter((p) => (p.userId ? p.userId !== currentUserId : p.socketId !== currentSocketId));
+
+  // Get active emote string across room for Centralized VFX
+  const activeEmoteKeys = Object.keys(activeEmotes);
+  const latestEmoteKey = activeEmoteKeys[activeEmoteKeys.length - 1];
+  const activeEmoteString = latestEmoteKey ? activeEmotes[latestEmoteKey] : null;
 
   useEffect(() => {
     if (turnState?.cantoResolution?.active) {
@@ -115,81 +103,120 @@ export default function GameTable({
   );
 
   return (
-    <div className="relative w-full h-[100dvh] felt-table-bg vignette-overlay overflow-hidden select-none font-outfit">
-      {/* 1. Poker Table Decorative Border Inlay */}
-      <div className="absolute inset-3 sm:inset-5 rounded-[2.5rem] sm:rounded-[3.5rem] border-4 border-emerald-800/60 bg-emerald-950/20 pointer-events-none z-0" />
+    <div className="h-[100dvh] w-full flex flex-col lg:flex-row felt-table-bg vignette-overlay overflow-hidden select-none font-outfit relative">
+      {/* 1. Left/Top Game Field Zone (Zona de Juego Central ~70% space) */}
+      <div className="flex-1 flex flex-col justify-center items-center relative min-h-[45vh] lg:min-h-full p-4 overflow-hidden">
+        {/* Table Felt Decorative Inlay */}
+        <div className="absolute inset-3 sm:inset-5 rounded-[2.5rem] sm:rounded-[3.5rem] border-4 border-emerald-800/60 bg-emerald-950/20 pointer-events-none z-0" />
 
-      {/* Top Header Bar */}
-      <header className="w-full flex items-center justify-between glass-panel-luxury px-3 py-2 border-b border-amber-500/30 shadow-md z-40 relative">
-        <div className="flex items-center gap-1.5">
-          <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-amber-400/40 flex items-center justify-center shadow-gold-glow">
-            <Dices className="w-4 h-4 text-amber-400 stroke-[2.5]" />
+        {/* Centralized Giant Reaction Emotes VFX Overlay */}
+        {activeEmoteString && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-7xl sm:text-8xl md:text-9xl z-[999] animate-bounce pointer-events-none drop-shadow-[0_20px_40px_rgba(0,0,0,0.95)]">
+            {activeEmoteString}
           </div>
-          <span className="text-xs font-black font-cinzel text-gold-shine tracking-wider">
-            CACHO
-          </span>
+        )}
+
+        {/* Dynamic Cacho Cup & Clean Dice Tray */}
+        <div className="relative z-10 my-auto transform scale-90 sm:scale-100 transition-transform">
+          <DiceCup
+            turnState={turnState}
+            isMyTurn={isMyTurn}
+            onToggleKeep={onToggleKeepDie}
+            isRolling={isRolling}
+            activeCanto={turnState.activeCanto}
+          />
         </div>
+      </div>
 
-        <div className="flex items-center gap-2 font-mono text-xs text-amber-300 font-bold">
-          <span>Turno: <strong className="text-white">{currentPlayer.name}</strong></span>
-          <span className="hidden xs:inline">• Sala: #{room.code}</span>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setIsLogsModalOpen(true)}
-            className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-700/80 hover:border-amber-400 text-amber-400 transition-all shadow"
-            title="Historial de Jugadas"
-          >
-            <ScrollText className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onLeaveRoom}
-            className="p-1.5 rounded-lg bg-rose-950/90 hover:bg-rose-950 border border-rose-600/80 text-rose-200 transition-all shadow"
-            title="Salir de la sala"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
-
-      {/* 2. Absolute Opponents Ring (Poker Ring Array) */}
-      {opponents.map((op, idx) => {
-        const opIsTurn = currentPlayer.userId ? currentPlayer.userId === op.userId : currentPlayer.socketId === op.socketId;
-        const opIsHost = Boolean(hostUserId && op.userId && hostUserId === op.userId);
-        const posClass = getOpponentPositionClass(idx);
-
-        return (
-          <div key={op.userId || op.socketId} className={posClass}>
-            <PlayerAvatar
-              player={op}
-              isTurn={opIsTurn}
-              isHost={opIsHost}
-              isMe={false}
-              activeEmote={activeEmotes[op.userId]}
-              size="sm"
-            />
+      {/* 2. Right/Bottom Side Control Panel (Panel de Control Lateral ~30% space) */}
+      <div className="w-full lg:w-96 lg:h-full glass-panel-luxury lg:border-l border-t lg:border-t-0 border-amber-500/30 flex flex-col p-3 sm:p-4 shadow-2xl shrink-0 z-40 overflow-y-auto min-h-0 justify-between">
+        {/* Control Panel Header Bar */}
+        <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80 mb-2 shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-amber-400/40 flex items-center justify-center shadow-gold-glow">
+              <Dices className="w-4 h-4 text-amber-400 stroke-[2.5]" />
+            </div>
+            <div>
+              <h2 className="text-sm font-black font-cinzel text-gold-shine leading-none">
+                CACHO CASINO
+              </h2>
+              <span className="text-[10px] text-zinc-400 font-mono">
+                Sala: <strong className="text-amber-300">#{room.code}</strong>
+              </span>
+            </div>
           </div>
-        );
-      })}
 
-      {/* 3. Center Playfield Area (Centered Dice Cup & Dice Tray) */}
-      <main className="absolute top-[42%] sm:top-[44%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center scale-85 sm:scale-95 md:scale-100 transition-all">
-        <DiceCup
-          turnState={turnState}
-          isMyTurn={isMyTurn}
-          onToggleKeep={onToggleKeepDie}
-          isRolling={isRolling}
-          activeCanto={turnState.activeCanto}
-        />
-      </main>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setIsLogsModalOpen(true)}
+              className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-700/80 hover:border-amber-400 text-amber-400 transition-all shadow"
+              title="Historial de Jugadas"
+            >
+              <ScrollText className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={onLeaveRoom}
+              className="p-1.5 rounded-lg bg-rose-950/90 hover:bg-rose-950 border border-rose-600/80 text-rose-200 transition-all shadow"
+              title="Salir de la sala"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
 
-      {/* 4. Bottom Local Player Dock Area (Avatar + Michi Board + Action Buttons) */}
-      <footer className="absolute bottom-0 left-0 w-full flex flex-col items-center pb-2 px-2 z-40">
-        {/* Local Player Avatar Badge */}
-        <div className="relative z-30 mb-0.5">
+        {/* Opponents Dock Section */}
+        <div className="shrink-0 mb-2">
+          <div className="flex items-center justify-between text-[10px] font-black uppercase text-amber-400 tracking-wider mb-1.5">
+            <span className="flex items-center gap-1">
+              <Users className="w-3 h-3" /> Oponentes en la mesa ({opponents.length})
+            </span>
+            <span className="text-zinc-500 text-[9px]">Turno: {currentPlayer.name}</span>
+          </div>
+
+          <div className="flex lg:flex-col items-center lg:items-stretch gap-2 overflow-x-auto lg:overflow-x-visible pb-1 pr-1">
+            {opponents.map((op) => {
+              const opIsTurn = currentPlayer.userId ? currentPlayer.userId === op.userId : currentPlayer.socketId === op.socketId;
+              const opIsHost = Boolean(hostUserId && op.userId && hostUserId === op.userId);
+
+              return (
+                <div
+                  key={op.userId || op.socketId}
+                  className={`p-2 rounded-xl border flex items-center justify-between transition-all shrink-0 lg:shrink ${
+                    opIsTurn
+                      ? 'bg-gradient-to-r from-amber-950/90 via-zinc-900 to-zinc-950 border-amber-400/90 shadow-gold-glow animate-active-turn-pulse'
+                      : 'bg-zinc-950/80 border-zinc-800'
+                  }`}
+                >
+                  <PlayerAvatar
+                    player={op}
+                    isTurn={opIsTurn}
+                    isHost={opIsHost}
+                    isMe={false}
+                    activeEmote={activeEmotes[op.userId]}
+                    size="xs"
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Compact Internal Scrollable Log Feed */}
+        <div className="hidden lg:block flex-1 min-h-[80px] max-h-[140px] overflow-y-auto text-[11px] my-2 p-2.5 bg-zinc-950/90 rounded-2xl border border-zinc-800/90 font-mono text-zinc-400 shadow-inner">
+          <div className="text-[9px] uppercase font-bold text-amber-400 mb-1 flex items-center gap-1">
+            <ScrollText className="w-3 h-3" /> Historial de Jugadas
+          </div>
+          {gameLogs.slice(-15).reverse().map((log, lIdx) => (
+            <div key={lIdx} className="leading-snug hover:text-zinc-200">
+              • {log}
+            </div>
+          ))}
+        </div>
+
+        {/* Local Player Section (Fixed at bottom of control panel) */}
+        <div className="mt-auto shrink-0 flex flex-col items-center w-full gap-1.5 pt-2 border-t border-amber-500/20">
           <PlayerAvatar
             player={localPlayer}
             isTurn={isMyTurn}
@@ -198,34 +225,32 @@ export default function GameTable({
             activeEmote={activeEmotes[localPlayer.userId]}
             size="sm"
           />
-        </div>
 
-        {/* Local Player Ultra Compact Michi Board */}
-        <div className="w-full max-w-sm">
-          <MichiBoard
-            player={localPlayer}
-            isCurrentTurnPlayer={isMyTurn}
-            turnState={turnState}
-            scoringOptions={scoringOptions}
-            onScore={onScoreCategory}
-            onCross={onCrossCategory}
-            activeEmote={null}
-            hideHeader={true}
-          />
-        </div>
+          <div className="w-full scale-95 sm:scale-100 transform origin-bottom transition-transform">
+            <MichiBoard
+              player={localPlayer}
+              isCurrentTurnPlayer={isMyTurn}
+              turnState={turnState}
+              scoringOptions={scoringOptions}
+              onScore={onScoreCategory}
+              onCross={onCrossCategory}
+              activeEmote={null}
+              hideHeader={true}
+            />
+          </div>
 
-        {/* Primary Action Buttons */}
-        <div className="w-full max-w-sm mt-1">
-          <ActionPanel
-            turnState={turnState}
-            isMyTurn={isMyTurn}
-            onRoll={(cantoData) => handleRollClick(cantoData)}
-            onOpenCantoModal={() => setIsCantoModalOpen(true)}
-            isRolling={isRolling}
-            player={localPlayer}
-          />
+          <div className="w-full">
+            <ActionPanel
+              turnState={turnState}
+              isMyTurn={isMyTurn}
+              onRoll={(cantoData) => handleRollClick(cantoData)}
+              onOpenCantoModal={() => setIsCantoModalOpen(true)}
+              isRolling={isRolling}
+              player={localPlayer}
+            />
+          </div>
         </div>
-      </footer>
+      </div>
 
       {/* Sleek Floating Top HUD Canto Announcement */}
       <HudAnnouncement
