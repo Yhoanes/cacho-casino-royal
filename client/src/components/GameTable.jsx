@@ -159,10 +159,10 @@ export default function GameTable({
         </button>
       </div>
 
-      {/* 3. Center Arena Stage (Pure Transparent Michi Board & Clean Dice Tray) */}
-      <main className="absolute top-[44%] sm:top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center gap-8 sm:gap-10 md:gap-12 w-full z-10">
+      {/* 3. Center Arena Stage (Proportional Dice Tray & Michi Board Centering) */}
+      <main className="absolute top-[48%] sm:top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center gap-4 sm:gap-6 md:gap-8 w-full max-w-md sm:max-w-lg md:max-w-xl px-3 z-10">
         {/* Pure Physical Dice Tray */}
-        <div className="w-full flex justify-center transform scale-90 sm:scale-100 transition-transform">
+        <div className="w-full flex justify-center transform scale-95 sm:scale-100 md:scale-105 transition-transform">
           <DiceCup
             turnState={turnState}
             isMyTurn={isMyTurn}
@@ -172,8 +172,8 @@ export default function GameTable({
           />
         </div>
 
-        {/* Local Player Transparent Michi Board */}
-        <div className="w-full max-w-sm sm:max-w-md bg-transparent border-0 p-0 shadow-none scale-85 sm:scale-95 md:scale-100 origin-top transition-transform pb-14 sm:pb-16">
+        {/* Local Player Michi Board (Perfectly Centered & Proportional) */}
+        <div className="w-full max-w-md sm:max-w-lg md:max-w-xl bg-transparent border-0 p-0 shadow-none scale-95 sm:scale-100 md:scale-105 origin-center transition-transform pb-12 sm:pb-14">
           <MichiBoard
             player={localPlayer}
             isCurrentTurnPlayer={isMyTurn}
