@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Sparkles, Shield, Dices } from 'lucide-react';
+import { LogOut, Dices, ScrollText, Crown, Shield } from 'lucide-react';
 import DiceCup from './DiceCup';
 import MichiBoard from './MichiBoard';
 import ActionPanel from './ActionPanel';
-import Scoreboard from './Scoreboard';
 import VictoryModal from './VictoryModal';
 import CantoModal from './CantoModal';
-import OpponentBoards from './OpponentBoards';
 import HudAnnouncement from './HudAnnouncement';
 import SocialControlsFAB from './SocialControlsFAB';
+import PlayerAvatar from './PlayerAvatar';
+import GameLogsModal from './GameLogsModal';
 
 export default function GameTable({
   room,
@@ -28,13 +28,18 @@ export default function GameTable({
 }) {
   const [isRolling, setIsRolling] = useState(false);
   const [isCantoModalOpen, setIsCantoModalOpen] = useState(false);
+  const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
   const [showCantoResolutionOverlay, setShowCantoResolutionOverlay] = useState(false);
 
   const { players = [], currentTurnIndex, turnState = {}, status, winner, winReason, hostUserId } = room;
 
   const currentPlayer = players[currentTurnIndex] || {};
+  const localPlayer = players.find((p) => (p.userId ? p.userId === currentUserId : p.socketId === currentSocketId)) || currentPlayer;
   const isMyTurn = currentPlayer.userId ? currentPlayer.userId === currentUserId : currentPlayer.socketId === currentSocketId;
   const isHost = Boolean(hostUserId && currentUserId && hostUserId === currentUserId);
+
+  // Opponents list (excluding local player)
+  const opponents = players.filter((p) => (p.userId ? p.userId !== currentUserId : p.socketId !== currentSocketId));
 
   useEffect(() => {
     if (turnState?.cantoResolution?.active) {
@@ -86,8 +91,6 @@ export default function GameTable({
     };
   };
 
-  const localPlayer = players.find((p) => p.userId ? p.userId === currentUserId : p.socketId === currentSocketId) || currentPlayer;
-
   const scoringOptions = calculateClientScoringOptions(
     turnState.dice,
     turnState.isReal,
@@ -95,60 +98,108 @@ export default function GameTable({
   );
 
   return (
-    <div className="w-full min-h-screen felt-table-bg vignette-overlay p-4 md:p-7 pb-28 md:pb-10 flex flex-col items-center justify-between font-outfit select-none relative">
-      {/* 2.5D Casino Table Header Bar */}
-      <header className="w-full max-w-7xl flex items-center justify-between glass-panel-luxury px-5 py-3.5 rounded-3xl border border-amber-500/30 shadow-2xl mb-6">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-zinc-950 border border-amber-400/40 flex items-center justify-center shadow-gold-glow">
-            <Dices className="w-6 h-6 text-amber-400 stroke-[2.5]" />
+    <div className="h-[100dvh] w-full overflow-hidden flex flex-col justify-between felt-table-bg vignette-overlay font-outfit select-none relative">
+      {/* 1. Poker Table Top Header Bar */}
+      <header className="w-full shrink-0 flex items-center justify-between glass-panel-luxury px-3 sm:px-5 py-2.5 border-b border-amber-500/30 shadow-xl z-20">
+        {/* Title / Logo */}
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-zinc-950 border border-amber-400/40 flex items-center justify-center shadow-gold-glow">
+            <Dices className="w-4 h-4 text-amber-400 stroke-[2.5]" />
           </div>
-          <div>
-            <h1 className="text-xl md:text-2xl font-black font-cinzel text-gold-shine leading-none tracking-wide">
-              CACHO CASINO ROYAL
-            </h1>
-            <span className="text-xs text-zinc-300 font-medium flex items-center gap-1 mt-0.5">
-              Turno actual: <strong className="text-amber-300 font-extrabold">{currentPlayer.name}</strong>
-            </span>
-          </div>
+          <h1 className="text-sm sm:text-base font-black font-cinzel text-gold-shine leading-none tracking-wide hidden xs:block">
+            CACHO CASINO
+          </h1>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="hidden sm:inline px-4 py-1.5 bg-zinc-950/90 border border-amber-500/50 rounded-2xl font-mono text-gold-shine font-bold text-sm shadow-inner">
-            Sala: {room.code}
+        {/* Opponents Poker Ring (Avatars along top) */}
+        <div className="flex items-center justify-center gap-3 sm:gap-6 overflow-x-auto px-2">
+          {opponents.map((op) => {
+            const opIsTurn = currentPlayer.userId ? currentPlayer.userId === op.userId : currentPlayer.socketId === op.socketId;
+            const opIsHost = Boolean(hostUserId && op.userId && hostUserId === op.userId);
+
+            return (
+              <PlayerAvatar
+                key={op.userId || op.socketId}
+                player={op}
+                isTurn={opIsTurn}
+                isHost={opIsHost}
+                isMe={false}
+                activeEmote={activeEmotes[op.userId]}
+                size="sm"
+              />
+            );
+          })}
+        </div>
+
+        {/* Action Header Controls */}
+        <div className="flex items-center gap-2">
+          <span className="hidden md:inline px-3 py-1 bg-zinc-950/90 border border-amber-500/50 rounded-xl font-mono text-gold-shine font-bold text-xs">
+            #{room.code}
           </span>
+
+          {/* Logs Modal Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setIsLogsModalOpen(true)}
+            className="p-2 rounded-xl bg-zinc-900 border border-zinc-700/80 hover:border-amber-400 text-amber-400 transition-all shadow hover:scale-105 active:scale-95 cursor-pointer"
+            title="Historial de Jugadas y Clasificación"
+          >
+            <ScrollText className="w-4 h-4 stroke-[2.5]" />
+          </button>
+
+          {/* Exit Room Button */}
           <button
             type="button"
             onClick={onLeaveRoom}
-            className="px-4 py-2.5 rounded-2xl bg-rose-950/90 hover:bg-rose-950 border border-rose-600/80 text-rose-200 text-xs font-black transition-all flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95 cursor-pointer"
+            className="p-2 rounded-xl bg-rose-950/90 hover:bg-rose-950 border border-rose-600/80 text-rose-200 transition-all shadow hover:scale-105 active:scale-95 cursor-pointer"
             title="Salir de la sala"
           >
             <LogOut className="w-4 h-4 stroke-[2.5]" />
-            <span className="hidden xs:inline">Salir de Sala</span>
           </button>
         </div>
       </header>
 
-      {/* Main Table Layout Grid */}
-      <main className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Scoreboard & Activity */}
-        <div className="lg:col-span-3 flex justify-center">
-          <Scoreboard
-            room={room}
-            currentSocketId={currentSocketId}
-            currentUserId={currentUserId}
-            onKickPlayer={onKickPlayer}
+      {/* 2. Center Playfield Area (Dice Cup & Roll HUD) */}
+      <main className="flex-1 flex flex-col items-center justify-center min-h-0 relative py-1 transform scale-80 sm:scale-90 md:scale-100 transition-transform">
+        <DiceCup
+          turnState={turnState}
+          isMyTurn={isMyTurn}
+          onToggleKeep={onToggleKeepDie}
+          isRolling={isRolling}
+          activeCanto={turnState.activeCanto}
+        />
+      </main>
+
+      {/* 3. Bottom Local Player Dock Area (Avatar + Michi Board + Action Buttons) */}
+      <footer className="shrink-0 w-full max-w-lg mx-auto flex flex-col items-center gap-1.5 px-2 pb-2 pt-0 z-10">
+        {/* Local Player Avatar Badge */}
+        <div className="relative z-20">
+          <PlayerAvatar
+            player={localPlayer}
+            isTurn={isMyTurn}
+            isHost={Boolean(hostUserId && localPlayer.userId && hostUserId === localPlayer.userId)}
+            isMe={true}
+            activeEmote={activeEmotes[localPlayer.userId]}
+            size="md"
           />
         </div>
 
-        {/* Center Column: Dice Cup & Turn Controls */}
-        <div className="lg:col-span-4 flex flex-col items-center justify-center space-y-5">
-          <DiceCup
+        {/* Local Player Compact Michi Board */}
+        <div className="w-full">
+          <MichiBoard
+            player={localPlayer}
+            isCurrentTurnPlayer={isMyTurn}
             turnState={turnState}
-            isMyTurn={isMyTurn}
-            onToggleKeep={onToggleKeepDie}
-            isRolling={isRolling}
-            activeCanto={turnState.activeCanto}
+            scoringOptions={scoringOptions}
+            onScore={onScoreCategory}
+            onCross={onCrossCategory}
+            activeEmote={null}
+            hideHeader={true}
           />
+        </div>
+
+        {/* Primary Action Buttons (Lanzar / Cantar) */}
+        <div className="w-full">
           <ActionPanel
             turnState={turnState}
             isMyTurn={isMyTurn}
@@ -158,29 +209,7 @@ export default function GameTable({
             player={localPlayer}
           />
         </div>
-
-        {/* Right Column: Local Player's Fixed Michi Board */}
-        <div className="lg:col-span-5 flex justify-center">
-          <MichiBoard
-            player={localPlayer}
-            isCurrentTurnPlayer={isMyTurn}
-            turnState={turnState}
-            scoringOptions={scoringOptions}
-            onScore={onScoreCategory}
-            onCross={onCrossCategory}
-            activeEmote={activeEmotes[localPlayer.userId]}
-          />
-        </div>
-      </main>
-
-      {/* Opponents Live Boards Grid */}
-      <OpponentBoards
-        players={players}
-        currentTurnIndex={currentTurnIndex}
-        currentSocketId={currentSocketId}
-        currentUserId={currentUserId}
-        activeEmotes={activeEmotes}
-      />
+      </footer>
 
       {/* Sleek Floating Top HUD Canto Announcement */}
       <HudAnnouncement
@@ -188,7 +217,7 @@ export default function GameTable({
         isVisible={showCantoResolutionOverlay}
       />
 
-      {/* Mobile-First Unconditional Root FAB Social Dock (Bottom Right) */}
+      {/* Mobile-First Unconditional Social Controls FAB (Bottom Right) */}
       <SocialControlsFAB
         roomCode={room.code}
         currentUserId={currentUserId}
@@ -197,12 +226,22 @@ export default function GameTable({
         onSendEmote={onSendEmote}
       />
 
+      {/* Game Logs & Leaderboard Modal */}
+      <GameLogsModal
+        isOpen={isLogsModalOpen}
+        onClose={() => setIsLogsModalOpen(false)}
+        room={room}
+        currentSocketId={currentSocketId}
+        currentUserId={currentUserId}
+        onKickPlayer={onKickPlayer}
+      />
+
       {/* Modals */}
       <CantoModal
         isOpen={isCantoModalOpen}
         onClose={() => setIsCantoModalOpen(false)}
         onConfirmCanto={(cantoData) => handleRollClick(cantoData)}
-        player={currentPlayer}
+        player={localPlayer}
         keptDice={turnState.keptDice}
         dice={turnState.dice}
       />
