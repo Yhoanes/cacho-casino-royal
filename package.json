@@ -1,0 +1,24 @@
+{
+  "name": "cacho-boliviano-multiplayer",
+  "version": "1.0.0",
+  "description": "Juego web multijugador en tiempo real del clasico juego de dados Boliviano Cacho",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "build": "npm install --prefix client && npm run build --prefix client",
+    "server": "node server/index.js",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "keywords": ["cacho", "boliviano", "game", "socket.io", "react", "tailwindcss", "dice"],
+  "author": "Antigravity",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
