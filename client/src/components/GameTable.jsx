@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, Dices, ScrollText, BarChart3, DoorOpen, LayoutGrid } from 'lucide-react';
 import DiceCup from './DiceCup';
-import MichiBoard from './MichiBoard';
 import ActionPanel from './ActionPanel';
 import VictoryModal from './VictoryModal';
 import CantoModal from './CantoModal';
@@ -186,10 +185,10 @@ export default function GameTable({
         </button>
       </div>
 
-      {/* 3. Center Arena Stage (Proportional Dice Tray & Michi Board Centering) */}
-      <main className="absolute top-[48%] sm:top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center gap-4 sm:gap-6 md:gap-8 w-full max-w-md sm:max-w-lg md:max-w-xl px-3 z-10">
-        {/* Interactive Physical Dice Tray & Device Motion Cacho Cup */}
-        <div className="w-full flex justify-center transform scale-95 sm:scale-100 md:scale-105 transition-transform">
+      {/* 3. Center Arena Stage (Clean Emerald Felt Table for Cacho Cup & Dice) */}
+      <main className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center gap-4 sm:gap-6 w-full max-w-md sm:max-w-lg md:max-w-xl px-3 z-10">
+        {/* Interactive Physical Dice Tray & Mouse Drag / Device Motion Cacho Cup */}
+        <div className="w-full flex justify-center transform scale-100 sm:scale-105 md:scale-110 transition-transform">
           <DiceCup
             turnState={turnState}
             isMyTurn={isMyTurn}
@@ -199,20 +198,6 @@ export default function GameTable({
             onTriggerRoll={() => handleRollClick()}
           />
         </div>
-
-        {/* Local Player Michi Board (Always Visible & Collapsible in Modal) */}
-        <div className="w-full max-w-md sm:max-w-lg md:max-w-xl bg-transparent border-0 p-0 shadow-none scale-95 sm:scale-100 md:scale-105 origin-center transition-transform pb-12 sm:pb-14">
-          <MichiBoard
-            player={localPlayer}
-            isCurrentTurnPlayer={isMyTurn}
-            turnState={turnState}
-            scoringOptions={scoringOptions}
-            onScore={onScoreCategory}
-            onCross={onCrossCategory}
-            activeEmote={null}
-            hideHeader={true}
-          />
-        </div>
       </main>
 
       {/* 4. Single Floating Status Pill */}
@@ -220,12 +205,12 @@ export default function GameTable({
         {isMyTurn ? (
           turnState.hasRolledThisTurn ? (
             turnState.rollsLeft > 0 ? (
-              <span>👇 Toca dados para Guardar o Agita tu móvil para Lanzar</span>
+              <span>👇 Toca dados para Guardar o Arrastra/Agita para Lanzar</span>
             ) : (
-              <span>⚠️ Sin tiros. Selecciona casilla para anotar o tachar</span>
+              <span>⚠️ Sin tiros. Abre "Mi Tablero" arriba para anotar o tachar</span>
             )
           ) : (
-            <span>🎲 ¡Es tu turno! Agita tu teléfono o presiona Lanzar</span>
+            <span>🎲 ¡Es tu turno! Arrastra el Cacho o agita tu móvil</span>
           )
         ) : (
           <span>⏳ Turno de {currentPlayer.name}...</span>
