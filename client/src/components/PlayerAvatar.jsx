@@ -9,16 +9,17 @@ export default function PlayerAvatar({
   isMe = false,
   activeEmote = null,
   size = 'md',
+  className = '',
 }) {
   if (!player) return null;
   const name = player.name || 'Jugador';
   const score = player.totalScore || 0;
 
   return (
-    <div className="relative overflow-visible flex flex-col items-center select-none shrink-0 z-20">
-      {/* Floating Animated Emote Overlay (Unlocked z-[100] & text-5xl) */}
+    <div className={`pointer-events-auto relative overflow-visible flex flex-col items-center select-none shrink-0 z-20 ${className}`}>
+      {/* Floating Animated Emote Overlay (Centered on avatar, z-[9999], text-6xl, no clipping) */}
       {activeEmote && (
-        <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-4xl sm:text-5xl z-[100] drop-shadow-xl animate-bounce whitespace-nowrap pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl sm:text-6xl z-[9999] animate-bounce whitespace-nowrap pointer-events-none drop-shadow-[0_10px_25px_rgba(0,0,0,0.95)]">
           {activeEmote}
         </div>
       )}
@@ -45,7 +46,7 @@ export default function PlayerAvatar({
         className={`mt-1 px-2 py-0.5 rounded-full border text-center transition-all max-w-[85px] sm:max-w-[105px] truncate shadow-md ${
           isTurn
             ? 'bg-gradient-to-r from-amber-950/90 via-zinc-900/95 to-amber-950/90 border-amber-400/90 text-amber-300 shadow-gold-glow font-extrabold'
-            : 'bg-black/80 backdrop-blur-sm border-zinc-800/90 text-zinc-300 font-semibold'
+            : 'bg-black/85 backdrop-blur-sm border-zinc-800/90 text-zinc-300 font-semibold'
         }`}
       >
         <div className="text-[10px] leading-tight truncate flex items-center justify-center gap-0.5">

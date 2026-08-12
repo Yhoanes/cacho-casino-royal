@@ -10,6 +10,23 @@ import SocialControlsFAB from './SocialControlsFAB';
 import PlayerAvatar from './PlayerAvatar';
 import GameLogsModal from './GameLogsModal';
 
+const getOpponentPositionClass = (index) => {
+  switch (index) {
+    case 0:
+      return 'absolute top-14 sm:top-16 left-1/2 -translate-x-1/2 z-20';
+    case 1:
+      return 'absolute top-24 sm:top-28 left-2 sm:left-6 z-20';
+    case 2:
+      return 'absolute top-24 sm:top-28 right-2 sm:right-6 z-20';
+    case 3:
+      return 'absolute top-[38%] sm:top-[40%] left-2 sm:left-6 -translate-y-1/2 z-20';
+    case 4:
+      return 'absolute top-[38%] sm:top-[40%] right-2 sm:right-6 -translate-y-1/2 z-20';
+    default:
+      return 'absolute top-14 left-1/2 -translate-x-1/2 z-20';
+  }
+};
+
 export default function GameTable({
   room,
   currentSocketId,
@@ -98,9 +115,12 @@ export default function GameTable({
   );
 
   return (
-    <div className="h-[100dvh] w-full overflow-hidden flex flex-col justify-between felt-table-bg vignette-overlay font-outfit select-none relative">
-      {/* Top Header Bar & Action Triggers */}
-      <header className="w-full shrink-0 flex items-center justify-between glass-panel-luxury px-3 py-2 border-b border-amber-500/30 shadow-md z-30">
+    <div className="relative w-full h-[100dvh] felt-table-bg vignette-overlay overflow-hidden select-none font-outfit">
+      {/* 1. Poker Table Decorative Border Inlay */}
+      <div className="absolute inset-3 sm:inset-5 rounded-[2.5rem] sm:rounded-[3.5rem] border-4 border-emerald-800/60 bg-emerald-950/20 pointer-events-none z-0" />
+
+      {/* Top Header Bar */}
+      <header className="w-full flex items-center justify-between glass-panel-luxury px-3 py-2 border-b border-amber-500/30 shadow-md z-40 relative">
         <div className="flex items-center gap-1.5">
           <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-amber-400/40 flex items-center justify-center shadow-gold-glow">
             <Dices className="w-4 h-4 text-amber-400 stroke-[2.5]" />
@@ -111,7 +131,8 @@ export default function GameTable({
         </div>
 
         <div className="flex items-center gap-2 font-mono text-xs text-amber-300 font-bold">
-          <span>Sala: {room.code}</span>
+          <span>Turno: <strong className="text-white">{currentPlayer.name}</strong></span>
+          <span className="hidden xs:inline">• Sala: #{room.code}</span>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -134,15 +155,15 @@ export default function GameTable({
         </div>
       </header>
 
-      {/* 1. Opponents Top Horizontal Ring Container (Strict horizontal row) */}
-      <div className="w-full flex flex-row justify-center items-start gap-3 sm:gap-5 px-3 pt-2 shrink-0 overflow-visible z-20 min-h-[70px]">
-        {opponents.map((op) => {
-          const opIsTurn = currentPlayer.userId ? currentPlayer.userId === op.userId : currentPlayer.socketId === op.socketId;
-          const opIsHost = Boolean(hostUserId && op.userId && hostUserId === op.userId);
+      {/* 2. Absolute Opponents Ring (Poker Ring Array) */}
+      {opponents.map((op, idx) => {
+        const opIsTurn = currentPlayer.userId ? currentPlayer.userId === op.userId : currentPlayer.socketId === op.socketId;
+        const opIsHost = Boolean(hostUserId && op.userId && hostUserId === op.userId);
+        const posClass = getOpponentPositionClass(idx);
 
-          return (
+        return (
+          <div key={op.userId || op.socketId} className={posClass}>
             <PlayerAvatar
-              key={op.userId || op.socketId}
               player={op}
               isTurn={opIsTurn}
               isHost={opIsHost}
@@ -150,12 +171,12 @@ export default function GameTable({
               activeEmote={activeEmotes[op.userId]}
               size="sm"
             />
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
 
-      {/* 2. Real Center Playfield Area (Dice Cup & Dice Tray Centering) */}
-      <main className="flex-1 w-full flex flex-col justify-center items-center my-auto min-h-[200px] relative z-10 overflow-visible transform scale-85 sm:scale-95 md:scale-100 transition-transform">
+      {/* 3. Center Playfield Area (Centered Dice Cup & Dice Tray) */}
+      <main className="absolute top-[42%] sm:top-[44%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center scale-85 sm:scale-95 md:scale-100 transition-all">
         <DiceCup
           turnState={turnState}
           isMyTurn={isMyTurn}
@@ -165,10 +186,10 @@ export default function GameTable({
         />
       </main>
 
-      {/* 3. Bottom Local Player Area (Avatar + Ultra Compact Michi Board + Action Buttons) */}
-      <footer className="w-full max-w-sm mx-auto shrink-0 flex flex-col items-center gap-1 px-2 pb-2 z-20">
+      {/* 4. Bottom Local Player Dock Area (Avatar + Michi Board + Action Buttons) */}
+      <footer className="absolute bottom-0 left-0 w-full flex flex-col items-center pb-2 px-2 z-40">
         {/* Local Player Avatar Badge */}
-        <div className="relative z-30">
+        <div className="relative z-30 mb-0.5">
           <PlayerAvatar
             player={localPlayer}
             isTurn={isMyTurn}
@@ -179,8 +200,8 @@ export default function GameTable({
           />
         </div>
 
-        {/* Local Player Michi Board (Restricted height max-h-[30vh]) */}
-        <div className="w-full">
+        {/* Local Player Ultra Compact Michi Board */}
+        <div className="w-full max-w-sm">
           <MichiBoard
             player={localPlayer}
             isCurrentTurnPlayer={isMyTurn}
@@ -193,8 +214,8 @@ export default function GameTable({
           />
         </div>
 
-        {/* Action Buttons */}
-        <div className="w-full">
+        {/* Primary Action Buttons */}
+        <div className="w-full max-w-sm mt-1">
           <ActionPanel
             turnState={turnState}
             isMyTurn={isMyTurn}
