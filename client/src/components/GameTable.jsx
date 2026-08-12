@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Dices, ScrollText, Users, Sparkles } from 'lucide-react';
+import { LogOut, Dices, ScrollText, Users, Eye } from 'lucide-react';
 import DiceCup from './DiceCup';
 import MichiBoard from './MichiBoard';
 import ActionPanel from './ActionPanel';
@@ -9,6 +9,7 @@ import HudAnnouncement from './HudAnnouncement';
 import SocialControlsFAB from './SocialControlsFAB';
 import PlayerAvatar from './PlayerAvatar';
 import GameLogsModal from './GameLogsModal';
+import OpponentBoardModal from './OpponentBoardModal';
 
 export default function GameTable({
   room,
@@ -29,6 +30,7 @@ export default function GameTable({
   const [isRolling, setIsRolling] = useState(false);
   const [isCantoModalOpen, setIsCantoModalOpen] = useState(false);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
+  const [selectedOpponent, setSelectedOpponent] = useState(null);
   const [showCantoResolutionOverlay, setShowCantoResolutionOverlay] = useState(false);
 
   const { players = [], currentTurnIndex, turnState = {}, status, winner, winReason, hostUserId, gameLogs = [] } = room;
@@ -40,11 +42,6 @@ export default function GameTable({
 
   // Opponents list (excluding local player)
   const opponents = players.filter((p) => (p.userId ? p.userId !== currentUserId : p.socketId !== currentSocketId));
-
-  // Get active emote string across room for Centralized VFX
-  const activeEmoteKeys = Object.keys(activeEmotes);
-  const latestEmoteKey = activeEmoteKeys[activeEmoteKeys.length - 1];
-  const activeEmoteString = latestEmoteKey ? activeEmotes[latestEmoteKey] : null;
 
   useEffect(() => {
     if (turnState?.cantoResolution?.active) {
@@ -109,13 +106,6 @@ export default function GameTable({
         {/* Table Felt Decorative Inlay */}
         <div className="absolute inset-3 sm:inset-5 rounded-[2.5rem] sm:rounded-[3.5rem] border-4 border-emerald-800/60 bg-emerald-950/20 pointer-events-none z-0" />
 
-        {/* Centralized Giant Reaction Emotes VFX Overlay */}
-        {activeEmoteString && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-7xl sm:text-8xl md:text-9xl z-[999] animate-bounce pointer-events-none drop-shadow-[0_20px_40px_rgba(0,0,0,0.95)]">
-            {activeEmoteString}
-          </div>
-        )}
-
         {/* Dynamic Cacho Cup & Clean Dice Tray */}
         <div className="relative z-10 my-auto transform scale-90 sm:scale-100 transition-transform">
           <DiceCup
@@ -124,6 +114,18 @@ export default function GameTable({
             onToggleKeep={onToggleKeepDie}
             isRolling={isRolling}
             activeCanto={turnState.activeCanto}
+          />
+        </div>
+
+        {/* Floating Action Buttons Container (Thumb Zone in Game Field Area) */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3 sm:gap-4 z-50 w-[92%] max-w-sm justify-center">
+          <ActionPanel
+            turnState={turnState}
+            isMyTurn={isMyTurn}
+            onRoll={(cantoData) => handleRollClick(cantoData)}
+            onOpenCantoModal={() => setIsCantoModalOpen(true)}
+            isRolling={isRolling}
+            player={localPlayer}
           />
         </div>
       </div>
@@ -166,11 +168,11 @@ export default function GameTable({
           </div>
         </div>
 
-        {/* Opponents Dock Section */}
+        {/* Clickable Opponents Section ("Espiar" Mechanics) */}
         <div className="shrink-0 mb-2">
           <div className="flex items-center justify-between text-[10px] font-black uppercase text-amber-400 tracking-wider mb-1.5">
             <span className="flex items-center gap-1">
-              <Users className="w-3 h-3" /> Oponentes en la mesa ({opponents.length})
+              <Users className="w-3 h-3" /> Oponentes (Toca para Espiar <Eye className="w-3 h-3 inline text-amber-300" />)
             </span>
             <span className="text-zinc-500 text-[9px]">Turno: {currentPlayer.name}</span>
           </div>
@@ -183,11 +185,13 @@ export default function GameTable({
               return (
                 <div
                   key={op.userId || op.socketId}
-                  className={`p-2 rounded-xl border flex items-center justify-between transition-all shrink-0 lg:shrink ${
+                  className={`p-2 rounded-xl border flex items-center justify-between transition-all shrink-0 lg:shrink cursor-pointer hover:border-amber-400/80 active:scale-95 ${
                     opIsTurn
                       ? 'bg-gradient-to-r from-amber-950/90 via-zinc-900 to-zinc-950 border-amber-400/90 shadow-gold-glow animate-active-turn-pulse'
                       : 'bg-zinc-950/80 border-zinc-800'
                   }`}
+                  onClick={() => setSelectedOpponent(op)}
+                  title={`Haz clic para espiar el tablero de ${op.name}`}
                 >
                   <PlayerAvatar
                     player={op}
@@ -197,6 +201,9 @@ export default function GameTable({
                     activeEmote={activeEmotes[op.userId]}
                     size="xs"
                   />
+                  <div className="hidden lg:flex items-center gap-1 text-[10px] text-amber-400 font-bold">
+                    <Eye className="w-3.5 h-3.5" /> Espiar
+                  </div>
                 </div>
               );
             })}
@@ -204,7 +211,7 @@ export default function GameTable({
         </div>
 
         {/* Compact Internal Scrollable Log Feed */}
-        <div className="hidden lg:block flex-1 min-h-[80px] max-h-[140px] overflow-y-auto text-[11px] my-2 p-2.5 bg-zinc-950/90 rounded-2xl border border-zinc-800/90 font-mono text-zinc-400 shadow-inner">
+        <div className="hidden lg:block flex-1 min-h-[80px] max-h-[120px] overflow-y-auto text-[11px] my-2 p-2.5 bg-zinc-950/90 rounded-2xl border border-zinc-800/90 font-mono text-zinc-400 shadow-inner">
           <div className="text-[9px] uppercase font-bold text-amber-400 mb-1 flex items-center gap-1">
             <ScrollText className="w-3 h-3" /> Historial de Jugadas
           </div>
@@ -215,7 +222,7 @@ export default function GameTable({
           ))}
         </div>
 
-        {/* Local Player Section (Fixed at bottom of control panel) */}
+        {/* Local Player Section */}
         <div className="mt-auto shrink-0 flex flex-col items-center w-full gap-1.5 pt-2 border-t border-amber-500/20">
           <PlayerAvatar
             player={localPlayer}
@@ -226,7 +233,7 @@ export default function GameTable({
             size="sm"
           />
 
-          <div className="w-full scale-95 sm:scale-100 transform origin-bottom transition-transform">
+          <div className="w-full scale-95 sm:scale-100 transform origin-bottom transition-transform pb-12 lg:pb-0">
             <MichiBoard
               player={localPlayer}
               isCurrentTurnPlayer={isMyTurn}
@@ -236,17 +243,6 @@ export default function GameTable({
               onCross={onCrossCategory}
               activeEmote={null}
               hideHeader={true}
-            />
-          </div>
-
-          <div className="w-full">
-            <ActionPanel
-              turnState={turnState}
-              isMyTurn={isMyTurn}
-              onRoll={(cantoData) => handleRollClick(cantoData)}
-              onOpenCantoModal={() => setIsCantoModalOpen(true)}
-              isRolling={isRolling}
-              player={localPlayer}
             />
           </div>
         </div>
@@ -265,6 +261,13 @@ export default function GameTable({
         chatMessages={chatMessages}
         onSendMessage={onSendMessage}
         onSendEmote={onSendEmote}
+      />
+
+      {/* Opponent Inspect Board Modal ("Espiar" Mechanics) */}
+      <OpponentBoardModal
+        isOpen={Boolean(selectedOpponent)}
+        onClose={() => setSelectedOpponent(null)}
+        opponent={selectedOpponent}
       />
 
       {/* Game Logs & Leaderboard Modal */}

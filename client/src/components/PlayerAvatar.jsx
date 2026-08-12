@@ -9,6 +9,7 @@ export default function PlayerAvatar({
   isMe = false,
   activeEmote = null,
   size = 'md',
+  onClick = null,
   className = '',
 }) {
   if (!player) return null;
@@ -16,10 +17,15 @@ export default function PlayerAvatar({
   const score = player.totalScore || 0;
 
   return (
-    <div className={`pointer-events-auto relative overflow-visible flex flex-col items-center select-none shrink-0 z-20 ${className}`}>
-      {/* Floating Animated Emote Overlay (Centered on avatar, z-[9999], text-6xl, no clipping) */}
+    <div
+      onClick={onClick || undefined}
+      className={`pointer-events-auto relative overflow-visible flex flex-col items-center select-none shrink-0 ${
+        onClick ? 'cursor-pointer hover:scale-105 active:scale-95 transition-transform' : ''
+      } ${className}`}
+    >
+      {/* Floating Animated Emote Overlay (Exclusive to player avatar, -top-12 z-[100]) */}
       {activeEmote && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl sm:text-6xl z-[9999] animate-bounce whitespace-nowrap pointer-events-none drop-shadow-[0_10px_25px_rgba(0,0,0,0.95)]">
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-5xl sm:text-6xl z-[100] animate-bounce whitespace-nowrap pointer-events-none drop-shadow-xl">
           {activeEmote}
         </div>
       )}
