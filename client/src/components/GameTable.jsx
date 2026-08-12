@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Dices, ScrollText, Crown, Shield } from 'lucide-react';
+import { LogOut, Dices, ScrollText } from 'lucide-react';
 import DiceCup from './DiceCup';
 import MichiBoard from './MichiBoard';
 import ActionPanel from './ActionPanel';
@@ -99,68 +99,63 @@ export default function GameTable({
 
   return (
     <div className="h-[100dvh] w-full overflow-hidden flex flex-col justify-between felt-table-bg vignette-overlay font-outfit select-none relative">
-      {/* 1. Poker Table Top Header Bar */}
-      <header className="w-full shrink-0 flex items-center justify-between glass-panel-luxury px-3 sm:px-5 py-2.5 border-b border-amber-500/30 shadow-xl z-20">
-        {/* Title / Logo */}
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-zinc-950 border border-amber-400/40 flex items-center justify-center shadow-gold-glow">
+      {/* Top Header Bar & Action Triggers */}
+      <header className="w-full shrink-0 flex items-center justify-between glass-panel-luxury px-3 py-2 border-b border-amber-500/30 shadow-md z-30">
+        <div className="flex items-center gap-1.5">
+          <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-amber-400/40 flex items-center justify-center shadow-gold-glow">
             <Dices className="w-4 h-4 text-amber-400 stroke-[2.5]" />
           </div>
-          <h1 className="text-sm sm:text-base font-black font-cinzel text-gold-shine leading-none tracking-wide hidden xs:block">
-            CACHO CASINO
-          </h1>
-        </div>
-
-        {/* Opponents Poker Ring (Avatars along top) */}
-        <div className="flex items-center justify-center gap-3 sm:gap-6 overflow-x-auto px-2">
-          {opponents.map((op) => {
-            const opIsTurn = currentPlayer.userId ? currentPlayer.userId === op.userId : currentPlayer.socketId === op.socketId;
-            const opIsHost = Boolean(hostUserId && op.userId && hostUserId === op.userId);
-
-            return (
-              <PlayerAvatar
-                key={op.userId || op.socketId}
-                player={op}
-                isTurn={opIsTurn}
-                isHost={opIsHost}
-                isMe={false}
-                activeEmote={activeEmotes[op.userId]}
-                size="sm"
-              />
-            );
-          })}
-        </div>
-
-        {/* Action Header Controls */}
-        <div className="flex items-center gap-2">
-          <span className="hidden md:inline px-3 py-1 bg-zinc-950/90 border border-amber-500/50 rounded-xl font-mono text-gold-shine font-bold text-xs">
-            #{room.code}
+          <span className="text-xs font-black font-cinzel text-gold-shine tracking-wider">
+            CACHO
           </span>
+        </div>
 
-          {/* Logs Modal Trigger Button */}
+        <div className="flex items-center gap-2 font-mono text-xs text-amber-300 font-bold">
+          <span>Sala: {room.code}</span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => setIsLogsModalOpen(true)}
-            className="p-2 rounded-xl bg-zinc-900 border border-zinc-700/80 hover:border-amber-400 text-amber-400 transition-all shadow hover:scale-105 active:scale-95 cursor-pointer"
-            title="Historial de Jugadas y Clasificación"
+            className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-700/80 hover:border-amber-400 text-amber-400 transition-all shadow"
+            title="Historial de Jugadas"
           >
-            <ScrollText className="w-4 h-4 stroke-[2.5]" />
+            <ScrollText className="w-4 h-4" />
           </button>
-
-          {/* Exit Room Button */}
           <button
             type="button"
             onClick={onLeaveRoom}
-            className="p-2 rounded-xl bg-rose-950/90 hover:bg-rose-950 border border-rose-600/80 text-rose-200 transition-all shadow hover:scale-105 active:scale-95 cursor-pointer"
+            className="p-1.5 rounded-lg bg-rose-950/90 hover:bg-rose-950 border border-rose-600/80 text-rose-200 transition-all shadow"
             title="Salir de la sala"
           >
-            <LogOut className="w-4 h-4 stroke-[2.5]" />
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </header>
 
-      {/* 2. Center Playfield Area (Dice Cup & Roll HUD) */}
-      <main className="flex-1 flex flex-col items-center justify-center min-h-0 relative py-1 transform scale-80 sm:scale-90 md:scale-100 transition-transform">
+      {/* 1. Opponents Top Horizontal Ring Container (Strict horizontal row) */}
+      <div className="w-full flex flex-row justify-center items-start gap-3 sm:gap-5 px-3 pt-2 shrink-0 overflow-visible z-20 min-h-[70px]">
+        {opponents.map((op) => {
+          const opIsTurn = currentPlayer.userId ? currentPlayer.userId === op.userId : currentPlayer.socketId === op.socketId;
+          const opIsHost = Boolean(hostUserId && op.userId && hostUserId === op.userId);
+
+          return (
+            <PlayerAvatar
+              key={op.userId || op.socketId}
+              player={op}
+              isTurn={opIsTurn}
+              isHost={opIsHost}
+              isMe={false}
+              activeEmote={activeEmotes[op.userId]}
+              size="sm"
+            />
+          );
+        })}
+      </div>
+
+      {/* 2. Real Center Playfield Area (Dice Cup & Dice Tray Centering) */}
+      <main className="flex-1 w-full flex flex-col justify-center items-center my-auto min-h-[200px] relative z-10 overflow-visible transform scale-85 sm:scale-95 md:scale-100 transition-transform">
         <DiceCup
           turnState={turnState}
           isMyTurn={isMyTurn}
@@ -170,21 +165,21 @@ export default function GameTable({
         />
       </main>
 
-      {/* 3. Bottom Local Player Dock Area (Avatar + Michi Board + Action Buttons) */}
-      <footer className="shrink-0 w-full max-w-lg mx-auto flex flex-col items-center gap-1.5 px-2 pb-2 pt-0 z-10">
+      {/* 3. Bottom Local Player Area (Avatar + Ultra Compact Michi Board + Action Buttons) */}
+      <footer className="w-full max-w-sm mx-auto shrink-0 flex flex-col items-center gap-1 px-2 pb-2 z-20">
         {/* Local Player Avatar Badge */}
-        <div className="relative z-20">
+        <div className="relative z-30">
           <PlayerAvatar
             player={localPlayer}
             isTurn={isMyTurn}
             isHost={Boolean(hostUserId && localPlayer.userId && hostUserId === localPlayer.userId)}
             isMe={true}
             activeEmote={activeEmotes[localPlayer.userId]}
-            size="md"
+            size="sm"
           />
         </div>
 
-        {/* Local Player Compact Michi Board */}
+        {/* Local Player Michi Board (Restricted height max-h-[30vh]) */}
         <div className="w-full">
           <MichiBoard
             player={localPlayer}
@@ -198,7 +193,7 @@ export default function GameTable({
           />
         </div>
 
-        {/* Primary Action Buttons (Lanzar / Cantar) */}
+        {/* Action Buttons */}
         <div className="w-full">
           <ActionPanel
             turnState={turnState}

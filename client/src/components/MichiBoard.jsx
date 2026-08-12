@@ -46,42 +46,39 @@ export default function MichiBoard({
     return (
       <div
         key={catKey}
-        className={`relative flex flex-col justify-between p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border transition-all duration-200 ${
-          isGrande ? 'min-h-[64px] sm:min-h-[85px]' : 'min-h-[60px] sm:min-h-[78px]'
+        className={`relative flex flex-col justify-between p-1 rounded-lg border transition-all duration-150 ${
+          isGrande ? 'min-h-[36px] sm:min-h-[44px]' : 'min-h-[34px] sm:min-h-[40px]'
         } ${
           isFilled
             ? isCrossed
-              ? 'bg-zinc-950/80 border-rose-900/40 shadow-inner'
+              ? 'bg-zinc-950/90 border-rose-950 text-rose-500 shadow-inner'
               : isReal
-              ? 'bg-gradient-to-br from-amber-950/80 via-amber-900/40 to-zinc-950 border-amber-400/90 shadow-gold-glow scale-[1.01]'
-              : 'bg-gradient-to-br from-emerald-950/80 via-zinc-950 to-zinc-900 border-emerald-500/60 shadow-lg'
+              ? 'bg-gradient-to-br from-amber-950/80 via-amber-900/40 to-zinc-950 border-amber-400/90 shadow-sm'
+              : 'bg-zinc-900 border-emerald-700/60 text-emerald-300'
             : canScoreThis
-            ? 'bg-gradient-to-br from-amber-950/60 via-amber-900/20 to-zinc-950 border-amber-400 shadow-gold-glow animate-pulse-glow hover:scale-[1.02] cursor-pointer'
-            : 'bg-zinc-950/60 border-zinc-800/80 shadow-michi-cell'
+            ? 'bg-amber-950/70 border-amber-400 text-amber-300 animate-pulse cursor-pointer'
+            : 'bg-zinc-950/60 border-zinc-850'
         }`}
       >
         {/* Cell Header */}
-        <div className="flex items-center justify-between text-[10px] sm:text-xs font-extrabold text-zinc-300 leading-none">
+        <div className="flex items-center justify-between text-[9px] font-extrabold text-zinc-300 leading-none">
           <span className="truncate">{label}</span>
           {isReal && !isCrossed && (
-            <span className="text-amber-300 flex items-center gap-0.5 text-[8px] sm:text-[10px] uppercase font-black bg-amber-500/25 px-1 py-0.5 rounded border border-amber-400/50 shrink-0">
-              <Crown className="w-2.5 h-2.5 text-amber-300 fill-current" /> REAL
+            <span className="text-amber-300 text-[8px] font-black uppercase shrink-0">
+              ★
             </span>
           )}
         </div>
 
-        {/* Cell Content / Value */}
-        <div className="my-auto text-center py-0.5">
+        {/* Cell Value */}
+        <div className="my-auto text-center py-0">
           {isFilled ? (
             isCrossed ? (
-              <div className="flex items-center justify-center gap-1 text-rose-500 font-extrabold text-lg sm:text-2xl">
-                <span>0</span>
-                <span className="text-[9px] italic font-semibold text-rose-400/80">(Huevo)</span>
-              </div>
+              <span className="text-rose-500 font-bold text-xs sm:text-sm font-mono">0</span>
             ) : (
               <span
-                className={`text-lg sm:text-2xl font-black font-cinzel ${
-                  isReal ? 'text-gold-shine drop-shadow' : 'text-emerald-400'
+                className={`text-xs sm:text-sm font-black font-cinzel ${
+                  isReal ? 'text-gold-shine' : 'text-emerald-400'
                 }`}
               >
                 {scoreVal}
@@ -90,12 +87,11 @@ export default function MichiBoard({
           ) : (
             <div className="text-center">
               {canScoreThis ? (
-                <div className="text-amber-300 font-black text-base sm:text-xl drop-shadow">
+                <span className="text-amber-300 font-black text-xs sm:text-sm">
                   +{option.score}
-                  {option.isReal && <span className="text-xs text-amber-400 ml-0.5">★</span>}
-                </div>
+                </span>
               ) : (
-                <span className="text-zinc-600 text-[10px] font-semibold italic">Vacía</span>
+                <span className="text-zinc-700 text-[8px] font-normal">-</span>
               )}
             </div>
           )}
@@ -103,28 +99,28 @@ export default function MichiBoard({
 
         {/* Action Controls for Turn Player */}
         {!isFilled && isCurrentTurnPlayer && hasRolledThisTurn && (
-          <div className="flex items-center gap-1 mt-0.5 pt-1 border-t border-zinc-800/80">
+          <div className="flex items-center gap-0.5 mt-0.5 pt-0.5 border-t border-zinc-800/80">
             {canScoreThis && (
               <button
                 type="button"
                 onClick={() => onScore(catKey)}
-                className="flex-1 py-0.5 px-1 rounded-lg bg-gradient-to-r from-amber-500 to-amber-400 text-zinc-950 font-black text-[9px] sm:text-xs flex items-center justify-center gap-0.5 shadow-gold-glow cursor-pointer"
+                className="flex-1 py-0.5 px-0.5 rounded bg-gradient-to-r from-amber-500 to-amber-400 text-zinc-950 font-black text-[8px] flex items-center justify-center gap-0.5 cursor-pointer shadow"
               >
-                <Check className="w-3 h-3 stroke-[3]" /> Anotar
+                <Check className="w-2.5 h-2.5 stroke-[3]" /> OK
               </button>
             )}
             {canCrossThis && (
               <button
                 type="button"
                 onClick={() => onCross(catKey)}
-                className={`py-0.5 px-1 rounded-lg font-bold text-[9px] sm:text-xs flex items-center justify-center gap-0.5 cursor-pointer ${
+                className={`py-0.5 px-0.5 rounded font-bold text-[8px] flex items-center justify-center gap-0.5 cursor-pointer ${
                   cantoFailed || !canScoreThis
-                    ? 'flex-1 bg-gradient-to-r from-rose-600 to-rose-500 text-white'
-                    : 'bg-zinc-800/90 text-zinc-400 border border-zinc-700 hover:text-rose-300'
+                    ? 'flex-1 bg-rose-600 text-white'
+                    : 'bg-zinc-800 text-zinc-400 hover:text-rose-300'
                 }`}
                 title="Tachar con cero (Huevo)"
               >
-                <Ban className="w-3 h-3" /> Tachar
+                <Ban className="w-2.5 h-2.5" /> 0
               </button>
             )}
           </div>
@@ -135,46 +131,34 @@ export default function MichiBoard({
 
   return (
     <div
-      className={`w-full max-w-lg glass-panel-luxury rounded-2xl sm:rounded-3xl p-2.5 sm:p-4 shadow-2d-table transition-all relative ${
-        isCurrentTurnPlayer ? 'border-2 border-amber-400/90 shadow-active-turn animate-active-turn-pulse' : 'border border-zinc-800'
+      className={`w-full max-w-sm mx-auto glass-panel-luxury rounded-2xl p-1.5 sm:p-2 shadow-2d-table transition-all relative shrink-0 max-h-[30vh] overflow-hidden flex flex-col justify-between ${
+        isCurrentTurnPlayer ? 'border-2 border-amber-400/90 shadow-active-turn' : 'border border-zinc-800'
       }`}
     >
       {/* Player Header (Optional) */}
       {!hideHeader && (
-        <div className="flex items-center justify-between mb-2 pb-2 border-b border-zinc-800/80">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-1 pb-1 border-b border-zinc-800/80">
+          <div className="flex items-center gap-1.5">
             <div className="relative">
-              <VipAvatar name={name} isTurn={isCurrentTurnPlayer} size="md" />
+              <VipAvatar name={name} isTurn={isCurrentTurnPlayer} size="xs" />
               <FloatingEmote emote={activeEmote} />
             </div>
             <div>
-              <h4 className="font-extrabold font-cinzel text-amber-400 text-sm sm:text-base leading-tight">
+              <h4 className="font-extrabold font-cinzel text-amber-400 text-xs leading-none">
                 MI TABLERO: {name}
               </h4>
-              <p className="text-[10px] font-semibold text-zinc-400 flex items-center gap-1">
-                {isCurrentTurnPlayer ? (
-                  <span className="text-amber-300 font-bold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" /> ¡Es tu turno!
-                  </span>
-                ) : (
-                  <span className="text-zinc-500">Esperando turno...</span>
-                )}
-              </p>
             </div>
           </div>
-          <div className="text-right bg-zinc-950 px-2.5 py-1 rounded-xl border border-zinc-800">
-            <span className="text-[9px] uppercase font-bold text-zinc-400 tracking-wider block leading-none">
-              Total
+          <div className="text-right bg-zinc-950 px-2 py-0.5 rounded-lg border border-zinc-800">
+            <span className="text-[8px] uppercase font-bold text-zinc-400 tracking-wider block leading-none">
+              Total: <strong className="text-amber-300 font-cinzel text-xs">{totalScore || 0}</strong>
             </span>
-            <div className="text-lg sm:text-xl font-black text-gold-shine font-cinzel leading-none mt-0.5">
-              {totalScore || 0}
-            </div>
           </div>
         </div>
       )}
 
       {/* 3x3 Michi Grid */}
-      <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5 mb-1.5 sm:mb-2.5">
+      <div className="grid grid-cols-3 gap-1 mb-1">
         {GRID_LAYOUT.map((cell) => renderCell(cell.key, cell.label, false))}
       </div>
 
