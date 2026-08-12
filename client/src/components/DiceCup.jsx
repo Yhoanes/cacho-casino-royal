@@ -45,12 +45,11 @@ export default function DiceCup({
   const [isDragging, setIsDragging] = useState(false);
   const [cupPos, setCupPos] = useState({ x: 0, y: 0 });
 
-  const cupRef = useRef(null);
-  const lastPosRef = useRef({ x: 0, y: 0, time: Date.now() });
+  const lastMousePos = useRef({ x: 0, y: 0, time: Date.now() });
 
   const canRollNow = isMyTurn && rollsLeft > 0 && !cantoFailed && !isRolling && !cantoResolution?.active;
 
-  // Mobile Device Motion API (Shake to Roll - High Sensitivity + iOS Perms)
+  // Mobile Device Motion API (Shake to Roll Mobile Acceleration Detection)
   useEffect(() => {
     if (!canRollNow) return;
 
@@ -73,13 +72,9 @@ export default function DiceCup({
         const z = current.z || 0;
 
         if (lastX !== null) {
-          const deltaX = Math.abs(x - lastX);
-          const deltaY = Math.abs(y - lastY);
-          const deltaZ = Math.abs(z - lastZ);
-          const speed = ((deltaX + deltaY + deltaZ) / diffTime) * 1000;
+          const speed = ((Math.abs(x - lastX) + Math.abs(y - lastY) + Math.abs(z - lastZ)) / diffTime) * 1000;
 
-          // Sensitive threshold for mobile devices (speed > 10)
-          if (speed > 10) {
+          if (speed > 8) {
             setIsShakingMotion(true);
             if (navigator.vibrate) navigator.vibrate([40, 20, 40]);
 
@@ -98,11 +93,10 @@ export default function DiceCup({
       }
     };
 
-    // Request Motion Permissions on iOS if available
     if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
       DeviceMotionEvent.requestPermission()
-        .then((response) => {
-          if (response === 'granted') {
+        .then((resp) => {
+          if (resp === 'granted') {
             window.addEventListener('devicemotion', handleMotion, false);
           }
         })
@@ -119,63 +113,98 @@ export default function DiceCup({
     };
   }, [canRollNow, onTriggerRoll]);
 
-  // Wide Free Screen Drag & Shake Handlers (Mouse & Touch)
-  const handleStartDrag = (clientX, clientY) => {
+  // Global PC Mouse & Touch Drag Handlers (1-Click Instant Release)
+  const startDragGesture = (clientX, clientY) => {
     if (!canRollNow) return;
+
     setIsDragging(true);
-    lastPosRef.current = { x: clientX, y: clientY, time: Date.now() };
-  };
+    lastMousePos.current = { x: clientX, y: clientY, time: Date.now() };
 
-  const handleMoveDrag = (clientX, clientY) => {
-    if (!isDragging || !canRollNow) return;
-    const now = Date.now();
-    const dt = now - lastPosRef.current.time;
+    const handleGlobalMove = (e) => {
+      const curX = e.clientX ?? e.touches?.[0]?.clientX ?? clientX;
+      const curY = e.clientY ?? e.touches?.[0]?.clientY ?? clientY;
+      const now = Date.now();
+      const dt = now - lastMousePos.current.time;
 
-    if (dt > 30) {
-      const dx = clientX - lastPosRef.current.x;
-      const dy = clientY - lastPosRef.current.y;
-      const speed = (Math.abs(dx) + Math.abs(dy)) / dt;
+      if (dt > 25) {
+        const dx = curX - lastMousePos.current.x;
+        const dy = curY - lastMousePos.current.y;
+        const speed = (Math.abs(dx) + Math.abs(dy)) / dt;
 
-      // Update cup position offset
-      setCupPos((prev) => ({
-        x: Math.max(-150, Math.min(150, prev.x + dx * 0.8)),
-        y: Math.max(-120, Math.min(120, prev.y + dy * 0.8)),
-      }));
+        setCupPos((prev) => ({
+          x: Math.max(-180, Math.min(180, prev.x + dx * 0.85)),
+          y: Math.max(-140, Math.min(140, prev.y + dy * 0.85)),
+        }));
 
-      if (speed > 0.4) {
-        setIsShakingMotion(true);
-        if (navigator.vibrate) navigator.vibrate([25, 15, 25]);
-      } else {
-        setIsShakingMotion(false);
+        if (speed > 0.3) {
+          setIsShakingMotion(true);
+          if (navigator.vibrate) navigator.vibrate([25, 15, 25]);
+        }
+
+        lastMousePos.current = { x: curX, y: curY, time: now };
       }
+    };
 
-      lastPosRef.current = { x: clientX, y: clientY, time: now };
-    }
-  };
+    const handleGlobalEnd = () => {
+      window.removeEventListener('mousemove', handleGlobalMove);
+      window.removeEventListener('mouseup', handleGlobalEnd);
+      window.removeEventListener('touchmove', handleGlobalMove);
+      window.removeEventListener('touchend', handleGlobalEnd);
 
-  const handleEndDrag = () => {
-    if (isDragging && canRollNow) {
       setIsDragging(false);
       setIsShakingMotion(false);
       setCupPos({ x: 0, y: 0 });
-      if (onTriggerRoll) onTriggerRoll();
-    }
+
+      if (onTriggerRoll) {
+        onTriggerRoll();
+      }
+    };
+
+    window.addEventListener('mousemove', handleGlobalMove);
+    window.addEventListener('mouseup', handleGlobalEnd);
+    window.addEventListener('touchmove', handleGlobalMove);
+    window.addEventListener('touchend', handleGlobalEnd);
   };
 
-  // Kept (Saved) vs Free (Active) dice
+  // Kept (Saved) vs Active (Rolling) dice
   const savedDiceIndices = dice.map((_, idx) => idx).filter((idx) => keptDice[idx]);
-  const freeDiceIndices = dice.map((_, idx) => idx).filter((idx) => !keptDice[idx]);
+  const activeDiceIndices = dice.map((_, idx) => idx).filter((idx) => !keptDice[idx]);
+
+  // Dice are in the cup (hidden from table) while shaking/rolling or before first roll
+  const isDiceInCup = isRolling || isShakingMotion || isDragging || !hasRolledThisTurn;
 
   return (
-    <div
-      onMouseMove={(e) => handleMoveDrag(e.clientX, e.clientY)}
-      onMouseUp={handleEndDrag}
-      onTouchMove={(e) => {
-        if (e.touches[0]) handleMoveDrag(e.touches[0].clientX, e.touches[0].clientY);
-      }}
-      onTouchEnd={handleEndDrag}
-      className="flex flex-col items-center justify-center p-1 relative select-none w-full min-h-[300px]"
-    >
+    <div className="flex flex-col items-center justify-center p-1 relative select-none w-full min-h-[300px]">
+      {/* Saved Dice Dock (Dados Guardados en la Mesa - Esquina Flotante Superior) */}
+      {hasRolledThisTurn && savedDiceIndices.length > 0 && (
+        <div className="mb-3 px-4 py-2 rounded-2xl bg-zinc-950/90 border border-amber-400/90 shadow-gold-glow backdrop-blur-md flex items-center gap-3 z-30 animate-fade-in">
+          <div className="flex items-center gap-1 text-[11px] uppercase font-black tracking-widest text-amber-300">
+            <Lock className="w-3.5 h-3.5 text-amber-400" /> Dados Guardados ({savedDiceIndices.length})
+          </div>
+          <div className="flex items-center gap-2">
+            {savedDiceIndices.map((idx) => {
+              const val = dice[idx];
+              const canToggle = isMyTurn && hasRolledThisTurn && rollsLeft > 0 && !cantoFailed;
+
+              return (
+                <div
+                  key={idx}
+                  onClick={() => canToggle && onToggleKeep(idx)}
+                  className="relative group cursor-pointer transform hover:scale-110 active:scale-95 transition-transform"
+                  title="Toca para liberar este dado de vuelta al vaso"
+                >
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl p-1 bg-gradient-to-br from-amber-100 via-amber-200 to-amber-400 text-zinc-950 border-2 border-amber-400 shadow-2d-die-kept grid grid-cols-3 grid-rows-3 items-center justify-items-center ring-2 ring-amber-400/40">
+                    {PIP_POSITIONS[val]?.map((posClass, pIdx) => (
+                      <span key={pIdx} className={`w-1.5 h-1.5 rounded-full ${posClass} bg-amber-950 die-pip-sunken-kept`} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Badges Overlay (Real vs Armada / Active Canto) */}
       <div className="flex flex-wrap items-center justify-center gap-2 mb-3 z-10">
         {hasRolledThisTurn && (
@@ -208,26 +237,22 @@ export default function DiceCup({
         )}
       </div>
 
-      {/* 2.5D Cacho Leather Cup (Rendered when rolling, shaking, or before initial roll) */}
-      {(isRolling || isShakingMotion || !hasRolledThisTurn || rollsLeft > 0) && (
+      {/* 2.5D Cacho Leather Cup Graphic (Interactive Drag-to-Shake + Instant Release) */}
+      {(isDiceInCup || rollsLeft > 0) && (
         <div
-          ref={cupRef}
-          onMouseDown={(e) => handleStartDrag(e.clientX, e.clientY)}
-          onTouchStart={(e) => {
-            if (e.touches[0]) handleStartDrag(e.touches[0].clientX, e.touches[0].clientY);
-          }}
-          onClick={() => canRollNow && !isDragging && onTriggerRoll && onTriggerRoll()}
+          onMouseDown={(e) => startDragGesture(e.clientX, e.clientY)}
+          onTouchStart={(e) => e.touches[0] && startDragGesture(e.touches[0].clientX, e.touches[0].clientY)}
           style={{
             transform: `translate3d(${cupPos.x}px, ${cupPos.y}px, 0px)`,
           }}
           className={`relative mb-4 z-30 transition-transform duration-75 ${
             canRollNow ? 'cursor-grab active:cursor-grabbing hover:scale-105' : 'cursor-default'
           }`}
-          title={canRollNow ? 'Mantén presionado y mueve por la pantalla para agitar el vaso, o agita tu móvil' : 'Cubilete Cacho'}
+          title={canRollNow ? 'Mantén presionado y agita el ratón o el teléfono. ¡Al soltar se lanzan los dados!' : 'Cubilete Cacho'}
         >
           <div
-            className={`w-36 h-40 sm:w-40 sm:h-44 rounded-b-[2.5rem] rounded-t-xl bg-gradient-to-b from-[#54250c] via-[#381606] to-[#1a0802] border-4 border-amber-900/90 shadow-2d-cup flex flex-col items-center justify-between transition-transform ${
-              isRolling || isShakingMotion ? 'animate-cup-shake scale-110' : ''
+            className={`w-36 h-40 sm:w-44 sm:h-48 rounded-b-[2.5rem] rounded-t-xl bg-gradient-to-b from-[#54250c] via-[#381606] to-[#1a0802] border-4 border-amber-900/90 shadow-2d-cup flex flex-col items-center justify-between transition-transform ${
+              isRolling || isShakingMotion || isDragging ? 'animate-cup-shake scale-110' : ''
             }`}
           >
             {/* Leather Stitched Upper Rim */}
@@ -251,34 +276,34 @@ export default function DiceCup({
             </div>
           </div>
 
-          {/* Dynamic Gesture Visual Prompt */}
+          {/* Dynamic Helper Prompt */}
           {canRollNow && (
             <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap z-40">
-              <span className="px-3.5 py-1.5 rounded-full bg-black/90 backdrop-blur-md text-amber-300 border border-amber-400/90 text-xs font-black flex items-center gap-1.5 shadow-gold-glow animate-pulse">
+              <span className="px-4 py-1.5 rounded-full bg-black/90 backdrop-blur-md text-amber-300 border border-amber-400/90 text-xs font-black flex items-center gap-1.5 shadow-gold-glow animate-pulse">
                 <Hand className="w-4 h-4 text-amber-400" />
-                <span>👋 Arrastra el vaso por la mesa o agita tu móvil</span>
+                <span>👋 Mueve/Agita el vaso y suelta para lanzar</span>
               </span>
             </div>
           )}
         </div>
       )}
 
-      {/* Physical Dice Tray (ONLY VISIBLE AFTER THE CUP HAS ROLLED!) */}
-      {hasRolledThisTurn ? (
+      {/* Active Rolling Dice Tray on Felt Table (ONLY VISIBLE WHEN NOT SHAKING / NOT ROLLING) */}
+      {!isDiceInCup && hasRolledThisTurn && activeDiceIndices.length > 0 ? (
         <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-4 sm:p-6 border border-emerald-500/20 shadow-2xl z-10 animate-fade-in">
           <div className="text-center mb-3">
             <p className="text-[11px] uppercase tracking-widest text-emerald-300 font-bold font-mono">
               {isMyTurn
                 ? rollsLeft > 0
-                  ? '👇 Toca los dados que quieres GUARDAR en la mesa'
-                  : '⚠️ Sin tiros restantes. Selecciona casilla para anotar o tachar en Mi Tablero'
+                  ? '👇 Toca los dados que quieres GUARDAR en la mesa (se quedan)'
+                  : '⚠️ Sin tiros restantes. Abre "Mi Tablero" para anotar o tachar'
                 : '⏳ Esperando la jugada del oponente...'}
             </p>
           </div>
 
           <div className="flex flex-wrap justify-center items-center gap-3.5 sm:gap-5">
-            {dice.map((val, idx) => {
-              const isKept = keptDice[idx];
+            {activeDiceIndices.map((idx) => {
+              const val = dice[idx];
               const canToggle = isMyTurn && hasRolledThisTurn && rollsLeft > 0 && !cantoFailed;
 
               return (
@@ -288,53 +313,38 @@ export default function DiceCup({
                   className={`relative group flex flex-col items-center transition-all transform ${
                     canToggle ? 'cursor-pointer hover:scale-110 active:scale-95' : 'cursor-default'
                   }`}
-                  title={isKept ? 'Dado Guardado en la mesa (se queda)' : 'Toca para GUARDAR este dado'}
+                  title="Toca para GUARDAR este dado en la mesa"
                 >
                   {/* 2.5D Bone / Ivory Die Cube */}
-                  <div
-                    className={`w-13 h-13 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-2xl p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform ${
-                      isRolling && !isKept ? 'animate-dice-roll' : ''
-                    } ${
-                      isKept
-                        ? 'bg-gradient-to-br from-amber-100 via-amber-200 to-amber-400 text-zinc-950 border-3 border-amber-400 shadow-2d-die-kept scale-105 ring-4 ring-amber-400/50'
-                        : 'bg-gradient-to-br from-amber-50 via-zinc-100 to-zinc-300 text-zinc-900 border-2 border-zinc-300 shadow-2d-die hover:border-amber-400/80'
-                    }`}
-                  >
+                  <div className="w-13 h-13 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-2xl p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform bg-gradient-to-br from-amber-50 via-zinc-100 to-zinc-300 text-zinc-900 border-2 border-zinc-300 shadow-2d-die hover:border-amber-400/80">
                     {PIP_POSITIONS[val]?.map((posClass, pIdx) => (
                       <span
                         key={pIdx}
-                        className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 rounded-full ${posClass} ${
-                          isKept ? 'bg-amber-950 die-pip-sunken-kept' : 'bg-zinc-900 die-pip-sunken'
-                        }`}
+                        className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 rounded-full ${posClass} bg-zinc-900 die-pip-sunken`}
                       />
                     ))}
                   </div>
 
-                  {/* Lock Status Badge */}
-                  <div className="mt-1.5 flex items-center justify-center">
-                    {isKept ? (
-                      <span className="px-2 py-0.5 rounded-md bg-amber-500/30 text-amber-300 border border-amber-400/60 text-[10px] font-black flex items-center gap-1 shadow-sm">
-                        <Lock className="w-2.5 h-2.5 text-amber-400" /> Guardado
+                  {hasRolledThisTurn && (
+                    <div className="mt-1.5 flex items-center justify-center">
+                      <span className="px-2 py-0.5 rounded bg-zinc-900/80 text-zinc-400 text-[10px] font-medium flex items-center gap-1 border border-zinc-800 group-hover:text-amber-300 group-hover:border-amber-500/50">
+                        <Unlock className="w-2.5 h-2.5" /> Guardar
                       </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900/80 text-zinc-400 text-[10px] font-medium flex items-center gap-1 border border-zinc-800 group-hover:text-amber-300 group-hover:border-amber-500/50">
-                        <Unlock className="w-2.5 h-2.5" /> Libre
-                      </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
-      ) : (
+      ) : !hasRolledThisTurn ? (
         /* Prompt before initial roll */
         <div className="text-center mt-2 z-10">
-          <p className="text-sm font-black font-cinzel text-gold-shine tracking-wider bg-black/80 px-4 py-2 rounded-full border border-amber-400/60 shadow-gold-glow">
-            🎲 Los dados están dentro del Cacho. ¡Agita o arrastra para tirar!
+          <p className="text-xs sm:text-sm font-black font-cinzel text-gold-shine tracking-wider bg-black/85 px-4 py-2 rounded-full border border-amber-400/70 shadow-gold-glow">
+            🎲 Los 5 dados están dentro del Cacho. ¡Mueve y suelta el vaso para lanzar!
           </p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
