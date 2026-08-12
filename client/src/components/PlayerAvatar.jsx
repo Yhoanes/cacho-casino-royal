@@ -23,9 +23,9 @@ export default function PlayerAvatar({
         onClick ? 'cursor-pointer hover:scale-105 active:scale-95 transition-transform' : ''
       } ${className}`}
     >
-      {/* Floating Animated Emote Overlay (Exclusive to player avatar, -top-12 z-[100]) */}
+      {/* Floating Animated Emote Overlay (Projected to the RIGHT towards table center, z-[9999], no clipping) */}
       {activeEmote && (
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-5xl sm:text-6xl z-[100] animate-bounce whitespace-nowrap pointer-events-none drop-shadow-xl">
+        <div className="absolute top-1/2 left-[120%] -translate-y-1/2 text-5xl md:text-6xl z-[9999] animate-bounce pointer-events-none whitespace-nowrap drop-shadow-[0_10px_20px_rgba(0,0,0,0.9)]">
           {activeEmote}
         </div>
       )}
