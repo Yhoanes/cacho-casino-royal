@@ -7,8 +7,7 @@ export default function PlayerAvatar({
   isTurn = false,
   isHost = false,
   isMe = false,
-  activeEmote = null,
-  activeChatMessage = null,
+  activeFeedItem = null,
   size = 'md',
   onClick = null,
   className = '',
@@ -24,17 +23,19 @@ export default function PlayerAvatar({
         onClick ? 'cursor-pointer hover:scale-105 active:scale-95 transition-transform' : ''
       } ${className}`}
     >
-      {/* Mutually Exclusive Overlay (Chat Message takes priority over Emote or vice-versa, ZERO overlap!) */}
-      {activeChatMessage ? (
+      {/* Unified FIFO Avatar Event Feed (Chats & Emotes stream sequentially, new events replace previous immediately!) */}
+      {activeFeedItem?.type === 'chat' && (
         <div className="absolute top-1/2 left-[120%] -translate-y-1/2 bg-zinc-950/95 border-2 border-amber-400 text-amber-300 text-xs sm:text-sm font-bold px-3.5 py-1.5 rounded-2xl shadow-gold-glow animate-bounce-short z-[999999] pointer-events-none whitespace-nowrap max-w-[160px] truncate flex items-center gap-1.5">
           <MessageSquare className="w-4 h-4 text-amber-400 shrink-0" />
-          <span className="truncate">{activeChatMessage}</span>
+          <span className="truncate">{activeFeedItem.value}</span>
         </div>
-      ) : activeEmote ? (
+      )}
+
+      {activeFeedItem?.type === 'emote' && (
         <div className="absolute top-1/2 left-[120%] -translate-y-1/2 text-5xl sm:text-6xl z-[999999] animate-bounce pointer-events-none whitespace-nowrap drop-shadow-[0_10px_25px_rgba(0,0,0,0.95)]">
-          {activeEmote}
+          {activeFeedItem.value}
         </div>
-      ) : null}
+      )}
 
       {/* Avatar Token Circle with Active Turn Gold Ring Glow */}
       <div className={`relative rounded-full transition-all ${

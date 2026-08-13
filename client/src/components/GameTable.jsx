@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LogOut, Dices, ScrollText, BarChart3, DoorOpen, LayoutGrid } from 'lucide-react';
 import DiceCup from './DiceCup';
 import ActionPanel from './ActionPanel';
@@ -34,7 +34,10 @@ export default function GameTable({
   const [isMyBoardModalOpen, setIsMyBoardModalOpen] = useState(false);
   const [showCantoResolutionOverlay, setShowCantoResolutionOverlay] = useState(false);
   const [pendingCantoData, setPendingCantoData] = useState(null);
-  const [activeChatBubbles, setActiveChatBubbles] = useState({});
+
+  // Unified FIFO Avatar Feed State (Chats & Emotes stream together, newest event replaces immediately!)
+  const [avatarFeedState, setAvatarFeedState] = useState({});
+  const feedTimersRef = useRef({});
 
   const { players = [], currentTurnIndex, turnState = {}, status, winner, winReason, hostUserId } = room;
 
@@ -60,31 +63,48 @@ export default function GameTable({
     }
   }, [turnState?.cantoResolution?.active]);
 
-  // Track new chat messages and trigger floating speech bubbles on player avatars (mutually exclusive with emotes)
+  // Helper to push new item to user's avatar feed (immediately replaces previous event!)
+  const pushToAvatarFeed = (userId, type, value) => {
+    if (!userId) return;
+
+    if (feedTimersRef.current[userId]) {
+      clearTimeout(feedTimersRef.current[userId]);
+    }
+
+    setAvatarFeedState((prev) => ({
+      ...prev,
+      [userId]: { type, value, id: Date.now() },
+    }));
+
+    feedTimersRef.current[userId] = setTimeout(() => {
+      setAvatarFeedState((prev) => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+    }, 4000);
+  };
+
+  // Sync incoming chat messages into unified FIFO feed
   useEffect(() => {
     if (chatMessages && chatMessages.length > 0) {
       const latest = chatMessages[chatMessages.length - 1];
       if (latest && latest.userId && latest.text) {
-        const uId = latest.userId;
-        setActiveChatBubbles((prev) => ({ ...prev, [uId]: latest.text }));
-
-        // Clear active emote for this user when a new chat arrives
-        if (activeEmotes && activeEmotes[uId]) {
-          delete activeEmotes[uId];
-        }
-
-        const timer = setTimeout(() => {
-          setActiveChatBubbles((prev) => {
-            const next = { ...prev };
-            delete next[uId];
-            return next;
-          });
-        }, 5000);
-
-        return () => clearTimeout(timer);
+        pushToAvatarFeed(latest.userId, 'chat', latest.text);
       }
     }
-  }, [chatMessages, activeEmotes]);
+  }, [chatMessages]);
+
+  // Sync incoming active emotes into unified FIFO feed
+  useEffect(() => {
+    if (activeEmotes) {
+      Object.entries(activeEmotes).forEach(([uId, emote]) => {
+        if (emote) {
+          pushToAvatarFeed(uId, 'emote', emote);
+        }
+      });
+    }
+  }, [activeEmotes]);
 
   // Auto-open MyBoardModal when local turn finishes all rolls or canto fails
   useEffect(() => {
@@ -114,14 +134,9 @@ export default function GameTable({
     setIsCantoModalOpen(false);
   };
 
-  const handleEmoteSendWithClear = (emote) => {
-    // When sending an emote, clear any active chat bubble for local user
+  const handleEmoteSendWithFeed = (emote) => {
     if (currentUserId) {
-      setActiveChatBubbles((prev) => {
-        const next = { ...prev };
-        delete next[currentUserId];
-        return next;
-      });
+      pushToAvatarFeed(currentUserId, 'emote', emote);
     }
     onSendEmote(emote);
   };
@@ -168,6 +183,7 @@ export default function GameTable({
           const pIsTurn = currentPlayer.userId ? currentPlayer.userId === p.userId : currentPlayer.socketId === p.socketId;
           const pIsHost = Boolean(hostUserId && p.userId && hostUserId === p.userId);
           const isMe = p.userId ? p.userId === currentUserId : p.socketId === currentSocketId;
+          const feedItem = avatarFeedState[p.userId];
 
           return (
             <PlayerAvatar
@@ -176,8 +192,7 @@ export default function GameTable({
               isTurn={pIsTurn}
               isHost={pIsHost}
               isMe={isMe}
-              activeEmote={activeEmotes[p.userId]}
-              activeChatMessage={activeChatBubbles[p.userId]}
+              activeFeedItem={feedItem}
               size="sm"
               onClick={() => isMe ? setIsMyBoardModalOpen(true) : setIsOpponentsOverviewOpen(true)}
             />
@@ -291,7 +306,7 @@ export default function GameTable({
         currentUserId={currentUserId}
         chatMessages={chatMessages}
         onSendMessage={onSendMessage}
-        onSendEmote={handleEmoteSendWithClear}
+        onSendEmote={handleEmoteSendWithFeed}
       />
 
       {/* Local Player "Mi Tablero" Desplegable Modal */}
