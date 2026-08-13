@@ -24,17 +24,17 @@ export default function PlayerAvatar({
         onClick ? 'cursor-pointer hover:scale-105 active:scale-95 transition-transform' : ''
       } ${className}`}
     >
-      {/* Floating Animated Emote Overlay */}
+      {/* Floating Animated Emote Overlay (Projected to the Right, z-[999999]) */}
       {activeEmote && (
-        <div className="absolute top-1/2 left-[115%] -translate-y-1/2 text-5xl sm:text-6xl z-[99999] animate-bounce pointer-events-none whitespace-nowrap drop-shadow-[0_10px_25px_rgba(0,0,0,0.95)]">
+        <div className="absolute top-1/2 left-[125%] -translate-y-1/2 text-5xl sm:text-6xl z-[999999] animate-bounce pointer-events-none whitespace-nowrap drop-shadow-[0_10px_25px_rgba(0,0,0,0.95)]">
           {activeEmote}
         </div>
       )}
 
-      {/* Floating Chat Speech Bubble Overlay */}
+      {/* Floating Chat Speech Bubble Overlay (Cleanly Floating Above Avatar, z-[999999], Zero Overlap!) */}
       {activeChatMessage && (
-        <div className="absolute top-1/2 left-[115%] -translate-y-1/2 bg-black/95 backdrop-blur-md border border-amber-400/90 text-amber-300 text-xs sm:text-sm font-bold px-3 py-1.5 rounded-2xl shadow-gold-glow animate-bounce-short z-[99999] pointer-events-none whitespace-nowrap max-w-[160px] truncate flex items-center gap-1.5">
-          <MessageSquare className="w-4 h-4 text-amber-400 shrink-0" />
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-zinc-950/95 border-2 border-amber-400 text-amber-300 text-xs font-bold px-3 py-1 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.6)] animate-bounce-short z-[999999] pointer-events-none whitespace-nowrap max-w-[160px] truncate flex items-center gap-1.5">
+          <MessageSquare className="w-3.5 h-3.5 text-amber-400 shrink-0" />
           <span className="truncate">{activeChatMessage}</span>
         </div>
       )}

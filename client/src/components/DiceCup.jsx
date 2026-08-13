@@ -167,8 +167,9 @@ export default function DiceCup({
     window.addEventListener('touchend', handleGlobalEnd);
   };
 
-  // Dice are hidden inside the cup while shaking/rolling or before initial roll
+  // Dice state definitions
   const isDiceInCup = isRolling || isShakingMotion || isDragging || !hasRolledThisTurn;
+  const savedDiceIndices = dice.map((_, idx) => idx).filter((idx) => keptDice[idx]);
 
   const activeCantoLabel = pendingCantoData
     ? `Canto Elegido: ${pendingCantoData.predictedSum} (${pendingCantoData.targetCategory.toUpperCase()})`
@@ -178,6 +179,36 @@ export default function DiceCup({
 
   return (
     <div className="flex flex-col items-center justify-center p-1 relative select-none w-full min-h-[300px]">
+      {/* Saved Dice Dock (En el área de Dados Guardados al agitar o entre tiros) */}
+      {hasRolledThisTurn && savedDiceIndices.length > 0 && (
+        <div className="mb-3 px-4 py-2 rounded-2xl bg-zinc-950/90 border border-amber-400/90 shadow-gold-glow backdrop-blur-md flex items-center gap-3 z-30 animate-fade-in">
+          <div className="flex items-center gap-1 text-[11px] uppercase font-black tracking-widest text-amber-300">
+            <Lock className="w-3.5 h-3.5 text-amber-400" /> Dados Guardados ({savedDiceIndices.length})
+          </div>
+          <div className="flex items-center gap-2">
+            {savedDiceIndices.map((idx) => {
+              const val = dice[idx];
+              const canToggle = isMyTurn && hasRolledThisTurn && rollsLeft > 0 && !cantoFailed;
+
+              return (
+                <div
+                  key={idx}
+                  onClick={() => canToggle && onToggleKeep(idx)}
+                  className="relative group cursor-pointer transform hover:scale-110 active:scale-95 transition-transform"
+                  title="Toca para liberar este dado de vuelta al vaso"
+                >
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl p-1 bg-gradient-to-br from-amber-100 via-amber-200 to-amber-400 text-zinc-950 border-2 border-amber-400 shadow-2d-die-kept grid grid-cols-3 grid-rows-3 items-center justify-items-center ring-2 ring-amber-400/40">
+                    {PIP_POSITIONS[val]?.map((posClass, pIdx) => (
+                      <span key={pIdx} className={`w-1.5 h-1.5 rounded-full ${posClass} bg-amber-950 die-pip-sunken-kept`} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Badges Overlay (Real vs Armada / Active Canto) */}
       <div className="flex flex-wrap items-center justify-center gap-2 mb-3 z-10">
         {hasRolledThisTurn && (
@@ -265,14 +296,14 @@ export default function DiceCup({
         </div>
       )}
 
-      {/* 5-Slot Fixed Position Dice Tray (NO LAYOUT SHIFTING WHEN TAPPING!) */}
+      {/* 5-Slot Fixed Position Dice Tray (Stable 5-column grid) */}
       {!isDiceInCup && hasRolledThisTurn ? (
         <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-4 sm:p-5 border border-emerald-500/20 shadow-2xl z-10 animate-fade-in">
           <div className="text-center mb-3">
             <p className="text-[11px] uppercase tracking-widest text-emerald-300 font-bold font-mono">
               {isMyTurn
                 ? rollsLeft > 0
-                  ? '👇 Toca los dados para GUARDAR / LIBERAR (Posición fija)'
+                  ? '👇 Toca los dados para GUARDAR / LIBERAR (Al agitar se mueven al área guardada)'
                   : '⚠️ Sin tiros restantes. Abre "Mi Tablero" para anotar o tachar'
                 : '⏳ Esperando la jugada del oponente...'}
             </p>
@@ -291,7 +322,7 @@ export default function DiceCup({
                   className={`relative group flex flex-col items-center transition-all transform ${
                     canToggle ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'
                   }`}
-                  title={isKept ? 'Dado Guardado (toca para liberar)' : 'Dado Libre (toca para guardar)'}
+                  title={isKept ? 'Dado Guardado (al agitar se moverá arriba)' : 'Dado Libre (al agitar entrará al vaso)'}
                 >
                   {/* 2.5D Die Cube */}
                   <div
@@ -319,7 +350,7 @@ export default function DiceCup({
                       </span>
                     ) : (
                       <span className="px-1.5 py-0.5 rounded bg-zinc-900/80 text-zinc-400 text-[8px] sm:text-[9px] font-medium flex items-center gap-0.5 border border-zinc-800 group-hover:text-amber-300 group-hover:border-amber-500/50">
-                        <Unlock className="w-2 h-2" /> Libre
+                        <Unlock className="w-2" /> Libre
                       </span>
                     )}
                   </div>
