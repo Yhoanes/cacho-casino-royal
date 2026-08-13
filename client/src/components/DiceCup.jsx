@@ -31,6 +31,8 @@ export default function DiceCup({
   activeCanto,
   pendingCantoData,
   onTriggerRoll,
+  socket,
+  roomCode,
 }) {
   const {
     dice = [1, 1, 1, 1, 1],
@@ -46,6 +48,9 @@ export default function DiceCup({
   const [isDragging, setIsDragging] = useState(false);
   const [cupPos, setCupPos] = useState({ x: 0, y: 0 });
 
+  // Remote shaking state for spectators and non-active players
+  const [remoteShake, setRemoteShake] = useState({ isShaking: false, cupPos: { x: 0, y: 0 } });
+
   // Track indices that were ALREADY docked in previous rolls
   const [dockedIndices, setDockedIndices] = useState([]);
 
@@ -53,25 +58,40 @@ export default function DiceCup({
 
   const canRollNow = isMyTurn && rollsLeft > 0 && !cantoFailed && !isRolling && !cantoResolution?.active;
 
-  // When a roll completes, update dockedIndices to lock previously kept dice in top dock
+  // Listen to remote shake gestures (for spectators & non-active players)
+  useEffect(() => {
+    if (!socket || isMyTurn) return;
+
+    const handleRemoteShake = (data) => {
+      setRemoteShake(data);
+    };
+
+    socket.on('cacho_remote_shake', handleRemoteShake);
+
+    return () => {
+      socket.off('cacho_remote_shake', handleRemoteShake);
+    };
+  }, [socket, isMyTurn]);
+
+  // Broadcast local shake gesture to spectators & room
+  const broadcastLocalShake = (shaking, pos) => {
+    if (socket && isMyTurn && roomCode) {
+      socket.emit('cacho_shake_gesture', {
+        roomCode,
+        isShaking: shaking,
+        cupPos: pos,
+      });
+    }
+  };
+
+  // Reset or update docked indices
   useEffect(() => {
     if (!hasRolledThisTurn) {
       setDockedIndices([]);
-    } else {
-      // Lock all dice that were kept prior to this roll
-      setDockedIndices((prev) => {
-        const next = [...prev];
-        keptDice.forEach((isKept, idx) => {
-          if (isKept && !next.includes(idx)) {
-            // Only dock if it was kept before this roll arrived
-          }
-        });
-        return next;
-      });
     }
-  }, [hasRolledThisTurn, rollsLeft]);
+  }, [hasRolledThisTurn]);
 
-  // When user starts shaking/dragging for the next roll, move ALL currently selected kept dice to the docked top area!
+  // When active player starts shaking/dragging, move ALL currently selected kept dice to the docked top area!
   const handleStartShake = () => {
     const newlyKept = dice.map((_, idx) => idx).filter((idx) => keptDice[idx]);
     setDockedIndices(newlyKept);
@@ -105,11 +125,13 @@ export default function DiceCup({
           if (speed > 8) {
             handleStartShake();
             setIsShakingMotion(true);
+            broadcastLocalShake(true, { x: 0, y: 0 });
             if (navigator.vibrate) navigator.vibrate([40, 20, 40]);
 
             clearTimeout(shakeTimeout);
             shakeTimeout = setTimeout(() => {
               setIsShakingMotion(false);
+              broadcastLocalShake(false, { x: 0, y: 0 });
               if (onTriggerRoll) onTriggerRoll();
             }, 600);
           }
@@ -161,13 +183,16 @@ export default function DiceCup({
         const dy = curY - lastMousePos.current.y;
         const speed = (Math.abs(dx) + Math.abs(dy)) / dt;
 
-        setCupPos((prev) => ({
-          x: Math.max(-180, Math.min(180, prev.x + dx * 0.85)),
-          y: Math.max(-140, Math.min(140, prev.y + dy * 0.85)),
-        }));
+        const newPos = {
+          x: Math.max(-180, Math.min(180, cupPos.x + dx * 0.85)),
+          y: Math.max(-140, Math.min(140, cupPos.y + dy * 0.85)),
+        };
+
+        setCupPos(newPos);
 
         if (speed > 0.3) {
           setIsShakingMotion(true);
+          broadcastLocalShake(true, newPos);
           if (navigator.vibrate) navigator.vibrate([25, 15, 25]);
         }
 
@@ -183,6 +208,7 @@ export default function DiceCup({
 
       setIsDragging(false);
       setIsShakingMotion(false);
+      broadcastLocalShake(false, { x: 0, y: 0 });
       setCupPos({ x: 0, y: 0 });
 
       if (onTriggerRoll) {
@@ -196,16 +222,20 @@ export default function DiceCup({
     window.addEventListener('touchend', handleGlobalEnd);
   };
 
+  // Determine active shake state (Local OR Remote for Spectators)
+  const isCupShaking = isRolling || isShakingMotion || isDragging || (!isMyTurn && remoteShake.isShaking);
+  const activeCupPos = isMyTurn ? cupPos : remoteShake.cupPos;
+
   // Dice state definitions:
   // - Top Dock: Shows dice indices that were locked into Zona Segura
   // - Table Tray: Shows active dice indices for the current roll
-  const isDiceInCup = isRolling || isShakingMotion || isDragging || !hasRolledThisTurn;
+  const isDiceInCup = isCupShaking || !hasRolledThisTurn;
   
   // Docked indices (in top Zona Segura)
-  const currentDockedIndices = dice.map((_, idx) => idx).filter((idx) => dockedIndices.includes(idx) && keptDice[idx]);
+  const currentDockedIndices = dice.map((_, idx) => idx).filter((idx) => (dockedIndices.includes(idx) || isCupShaking) && keptDice[idx]);
   
-  // Active table indices (on the felt table tray - NOT yet docked!)
-  const activeTableIndices = dice.map((_, idx) => idx).filter((idx) => !dockedIndices.includes(idx));
+  // Active table indices (on the felt table tray)
+  const activeTableIndices = dice.map((_, idx) => idx).filter((idx) => !dockedIndices.includes(idx) && !(isCupShaking && keptDice[idx]));
 
   const activeCantoLabel = pendingCantoData
     ? `Canto Elegido: ${pendingCantoData.predictedSum} (${pendingCantoData.targetCategory.toUpperCase()})`
@@ -230,17 +260,21 @@ export default function DiceCup({
                 <div
                   key={idx}
                   onClick={() => canToggle && onToggleKeep(idx)}
-                  className="relative group cursor-pointer transform hover:scale-110 active:scale-95 transition-transform shrink-0"
-                  title="Toca para devolver este dado a la mesa"
+                  className={`relative group transform hover:scale-110 active:scale-95 transition-transform shrink-0 ${
+                    canToggle ? 'cursor-pointer' : 'cursor-default'
+                  }`}
+                  title={canToggle ? 'Toca para devolver este dado a la mesa' : 'Dado Guardado en Zona Segura'}
                 >
                   <div className="w-10 h-10 sm:w-12 sm:h-12 aspect-square shrink-0 rounded-xl p-1 bg-gradient-to-br from-amber-100 via-amber-200 to-amber-400 text-zinc-950 border-2 border-amber-400 shadow-2d-die-kept grid grid-cols-3 grid-rows-3 items-center justify-items-center ring-2 ring-amber-400/50">
                     {PIP_POSITIONS[val]?.map((posClass, pIdx) => (
                       <span key={pIdx} className={`w-1.5 h-1.5 aspect-square rounded-full ${posClass} bg-amber-950 die-pip-sunken-kept`} />
                     ))}
                   </div>
-                  <span className="absolute -bottom-1 -right-1 p-0.5 bg-amber-500 rounded-full text-zinc-950 shadow">
-                    <Undo2 className="w-2.5 h-2.5 stroke-[3]" />
-                  </span>
+                  {canToggle && (
+                    <span className="absolute -bottom-1 -right-1 p-0.5 bg-amber-500 rounded-full text-zinc-950 shadow">
+                      <Undo2 className="w-2.5 h-2.5 stroke-[3]" />
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -280,13 +314,13 @@ export default function DiceCup({
         )}
       </div>
 
-      {/* 2.5D Cacho Leather Cup Graphic */}
+      {/* 2.5D Cacho Leather Cup Graphic (Renders Shaking Live for Spectators!) */}
       {(isDiceInCup || rollsLeft > 0) && (
         <div
-          onMouseDown={(e) => startDragGesture(e.clientX, e.clientY)}
-          onTouchStart={(e) => e.touches[0] && startDragGesture(e.touches[0].clientX, e.touches[0].clientY)}
+          onMouseDown={(e) => isMyTurn && startDragGesture(e.clientX, e.clientY)}
+          onTouchStart={(e) => isMyTurn && e.touches[0] && startDragGesture(e.touches[0].clientX, e.touches[0].clientY)}
           style={{
-            transform: `translate3d(${cupPos.x}px, ${cupPos.y}px, 0px)`,
+            transform: `translate3d(${activeCupPos.x}px, ${activeCupPos.y}px, 0px)`,
           }}
           className={`relative mb-3 z-30 transition-transform duration-75 ${
             canRollNow ? 'cursor-grab active:cursor-grabbing hover:scale-105' : 'cursor-default'
@@ -295,7 +329,7 @@ export default function DiceCup({
         >
           <div
             className={`w-36 h-40 sm:w-44 sm:h-48 rounded-b-[2.5rem] rounded-t-xl bg-gradient-to-b from-[#54250c] via-[#381606] to-[#1a0802] border-4 border-amber-900/90 shadow-2d-cup flex flex-col items-center justify-between transition-transform ${
-              isRolling || isShakingMotion || isDragging ? 'animate-cup-shake scale-110' : ''
+              isCupShaking ? 'animate-cup-shake scale-110' : ''
             }`}
           >
             {/* Leather Stitched Upper Rim */}
@@ -328,19 +362,28 @@ export default function DiceCup({
               </span>
             </div>
           )}
+
+          {/* Spectator Watching Cup Shake Notice */}
+          {!isMyTurn && isCupShaking && (
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap z-40">
+              <span className="px-3.5 py-1 rounded-full bg-purple-950/90 backdrop-blur-md text-purple-200 border border-purple-400 text-xs font-black flex items-center gap-1.5 shadow-xl animate-bounce-short">
+                <span>🎲 ¡Agitando el Cacho en vivo!</span>
+              </span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* 2. Active Dice Table Tray (DADOS DEL TIRO ACTUAL - SE QUEDAN EN SU SITIO AL MARCARSE!) */}
+      {/* 2. Active Dice Table Tray (DADOS DEL TIRO ACTUAL) */}
       {!isDiceInCup && hasRolledThisTurn && activeTableIndices.length > 0 ? (
         <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-4 sm:p-5 border border-emerald-500/20 shadow-2xl z-10 animate-fade-in">
           <div className="text-center mb-3">
             <span className="text-[11px] uppercase tracking-widest text-emerald-300 font-bold font-mono">
-              🔒 Toca para guardar (al agitar van a la zona segura)
+              {isMyTurn ? '🔒 Toca para guardar (al agitar van a la zona segura)' : '🎲 Dados de la mesa en vivo'}
             </span>
           </div>
 
-          {/* Active Table Dice (Exact count for current roll, die stays in place when marked!) */}
+          {/* Active Table Dice */}
           <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4.5">
             {activeTableIndices.map((idx) => {
               const val = dice[idx];
@@ -354,7 +397,7 @@ export default function DiceCup({
                   className={`relative group flex flex-col items-center transition-all transform shrink-0 ${
                     canToggle ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'
                   }`}
-                  title={isKept ? 'Dado Guardado (se moverá arriba al agitar)' : 'Toca para guardar este dado'}
+                  title={isKept ? 'Dado Guardado' : 'Dado en Mesa'}
                 >
                   <div
                     className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 aspect-square shrink-0 rounded-2xl p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform ${
@@ -393,7 +436,7 @@ export default function DiceCup({
         /* Prompt before initial roll */
         <div className="text-center mt-2 z-10">
           <span className="text-xs sm:text-sm font-bold font-cinzel text-gold-shine tracking-wider bg-black/85 px-4 py-1.5 rounded-full border border-amber-400/70 shadow-gold-glow">
-            🎲 Agita o arrastra el Cacho para tirar
+            {isMyTurn ? '🎲 Agita o arrastra el Cacho para tirar' : '🎲 Esperando lanzamiento...'}
           </span>
         </div>
       ) : null}

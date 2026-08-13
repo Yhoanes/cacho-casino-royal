@@ -1,7 +1,7 @@
 /**
  * socketHandlers.js
  * Socket.io events with WebRTC P2P audio signaling, Spectator mode,
- * session reconnection, host kick, voluntary exit, and offline status handling.
+ * live gesture broadcasting, session reconnection, host kick, voluntary exit, and offline status handling.
  */
 
 const RoomManager = require('./RoomManager');
@@ -109,7 +109,16 @@ function setupSocketHandlers(io) {
       socket.to(roomCode.toUpperCase()).emit('player_speaking_changed', { userId, isSpeaking });
     });
 
-    // 6. Reconnect Player (Silent Page Reload Reconnection)
+    // 6. Live Gesture Syncing (Broadcast cup shake gesture & positions to spectators & peers)
+    socket.on('cacho_shake_gesture', ({ roomCode, isShaking, cupPos }) => {
+      if (!roomCode) return;
+      socket.to(roomCode.toUpperCase()).emit('cacho_remote_shake', {
+        isShaking,
+        cupPos,
+      });
+    });
+
+    // 7. Reconnect Player (Silent Page Reload Reconnection)
     socket.on('reconnect_player', ({ roomCode, userId, playerName, avatar }) => {
       const res = RoomManager.reconnectPlayer(roomCode, socket.id, userId, playerName, avatar);
       if (res.error) {
@@ -120,7 +129,7 @@ function setupSocketHandlers(io) {
       broadcastRoom(res.room.code);
     });
 
-    // 7. Start Game
+    // 8. Start Game
     socket.on('start_game', ({ roomCode, userId }) => {
       const res = RoomManager.startGame(roomCode, socket.id, userId);
       if (res.error) {
@@ -129,7 +138,7 @@ function setupSocketHandlers(io) {
       broadcastRoom(roomCode);
     });
 
-    // 8. Roll Dice
+    // 9. Roll Dice
     socket.on('roll_dice', ({ roomCode, calledCantoNumber }) => {
       const res = RoomManager.rollDice(roomCode, socket.id, calledCantoNumber, io);
       if (res.error) {
@@ -138,7 +147,7 @@ function setupSocketHandlers(io) {
       broadcastRoom(roomCode);
     });
 
-    // 9. Toggle Keep Die
+    // 10. Toggle Keep Die
     socket.on('toggle_keep_die', ({ roomCode, dieIndex }) => {
       const res = RoomManager.toggleKeepDie(roomCode, socket.id, dieIndex);
       if (res.error) {
@@ -147,7 +156,7 @@ function setupSocketHandlers(io) {
       broadcastRoom(roomCode);
     });
 
-    // 10. Score Category
+    // 11. Score Category
     socket.on('score_category', ({ roomCode, category }) => {
       const res = RoomManager.scoreCategory(roomCode, socket.id, category);
       if (res.error) {
@@ -156,7 +165,7 @@ function setupSocketHandlers(io) {
       broadcastRoom(roomCode);
     });
 
-    // 11. Cross Category (0 / Huevo)
+    // 12. Cross Category (0 / Huevo)
     socket.on('cross_category', ({ roomCode, category }) => {
       const res = RoomManager.crossCategory(roomCode, socket.id, category);
       if (res.error) {
@@ -165,7 +174,7 @@ function setupSocketHandlers(io) {
       broadcastRoom(roomCode);
     });
 
-    // 12. Rematch / Next Game
+    // 13. Rematch / Next Game
     socket.on('rematch', ({ roomCode, userId }) => {
       const res = RoomManager.rematchGame(roomCode, socket.id, userId);
       if (res.error) {
@@ -174,7 +183,7 @@ function setupSocketHandlers(io) {
       broadcastRoom(roomCode);
     });
 
-    // 13. Kick Player (Host Privilege)
+    // 14. Kick Player (Host Privilege)
     socket.on('kick_player', ({ roomCode, requesterUserId, targetUserId }) => {
       const res = RoomManager.kickPlayer(roomCode, socket.id, requesterUserId, targetUserId);
       if (res.error) {
@@ -188,7 +197,7 @@ function setupSocketHandlers(io) {
       broadcastRoom(roomCode);
     });
 
-    // 14. Voluntary Leave Room
+    // 15. Voluntary Leave Room
     socket.on('leave_room', ({ roomCode, userId }) => {
       const res = RoomManager.leaveRoom(roomCode, socket.id, userId);
       if (res) {
@@ -200,7 +209,7 @@ function setupSocketHandlers(io) {
       }
     });
 
-    // 15. Disconnect (Mark Offline tolerance)
+    // 16. Disconnect (Mark Offline tolerance)
     socket.on('disconnect', () => {
       console.log(`[Socket.io] Player disconnected: ${socket.id}`);
       const res = RoomManager.disconnectPlayer(socket.id);
@@ -209,7 +218,7 @@ function setupSocketHandlers(io) {
       }
     });
 
-    // 16. In-Game Chat Message
+    // 17. In-Game Chat Message
     socket.on('send_chat_message', ({ roomCode, userId, senderName, text }) => {
       if (!roomCode || !text || !text.trim()) return;
       const room = RoomManager.getRoom(roomCode);
@@ -226,7 +235,7 @@ function setupSocketHandlers(io) {
       io.to(roomCode.toUpperCase()).emit('receive_chat_message', chatMsg);
     });
 
-    // 17. Express Emote Reaction
+    // 18. Express Emote Reaction
     socket.on('send_emote', ({ roomCode, userId, senderName, emote }) => {
       if (!roomCode || !emote) return;
       const room = RoomManager.getRoom(roomCode);

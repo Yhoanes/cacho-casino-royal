@@ -385,6 +385,8 @@ export default function GameTable({
             activeCanto={turnState.activeCanto}
             pendingCantoData={pendingCantoData}
             onTriggerRoll={() => handleRollClick()}
+            socket={socket}
+            roomCode={room?.code}
           />
         </div>
       </main>
