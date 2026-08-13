@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Lock, Unlock, Sparkles, Target, Dices, Smartphone, Hand, Undo2 } from 'lucide-react';
+import { Lock, Unlock, Sparkles, Target, Dices, Hand, Undo2 } from 'lucide-react';
 
 const PIP_POSITIONS = {
   1: ['col-start-2 row-start-2'],
@@ -179,12 +179,12 @@ export default function DiceCup({
     : null;
 
   return (
-    <div className="flex flex-col items-center justify-center p-1 relative select-none w-full min-h-[300px]">
-      {/* 1. Top Saved Dice Dock (ONLY RENDERS KEPT DICE!) */}
+    <div className="flex flex-col items-center justify-center p-1 relative select-none w-full min-h-[280px]">
+      {/* 1. Top Saved Dice Dock (Clean Casino Pill) */}
       {hasRolledThisTurn && savedDiceIndices.length > 0 && (
         <div className="mb-3 px-4 py-2 rounded-2xl bg-zinc-950/90 border border-amber-400/90 shadow-gold-glow backdrop-blur-md flex items-center gap-3 z-30 animate-fade-in">
           <div className="flex items-center gap-1 text-[11px] uppercase font-black tracking-widest text-amber-300">
-            <Lock className="w-3.5 h-3.5 text-amber-400" /> Dados Guardados ({savedDiceIndices.length})
+            <Lock className="w-3.5 h-3.5 text-amber-400" /> Guardados ({savedDiceIndices.length})
           </div>
           <div className="flex items-center gap-2">
             {savedDiceIndices.map((idx) => {
@@ -196,7 +196,7 @@ export default function DiceCup({
                   key={idx}
                   onClick={() => canToggle && onToggleKeep(idx)}
                   className="relative group cursor-pointer transform hover:scale-110 active:scale-95 transition-transform"
-                  title="Toca para desguardar este dado (vuelve a la mesa)"
+                  title="Toca para devolver este dado a la mesa"
                 >
                   <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl p-1 bg-gradient-to-br from-amber-100 via-amber-200 to-amber-400 text-zinc-950 border-2 border-amber-400 shadow-2d-die-kept grid grid-cols-3 grid-rows-3 items-center justify-items-center ring-2 ring-amber-400/50">
                     {PIP_POSITIONS[val]?.map((posClass, pIdx) => (
@@ -219,7 +219,7 @@ export default function DiceCup({
           <div>
             {isReal ? (
               <span className="px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 text-zinc-950 font-black text-xs shadow-gold-glow flex items-center gap-1 border border-yellow-200 animate-bounce-short">
-                <Sparkles className="w-3.5 h-3.5 fill-current text-zinc-950" /> ¡TIRO REAL! (5 Dados)
+                <Sparkles className="w-3.5 h-3.5 fill-current text-zinc-950" /> ¡TIRO REAL!
               </span>
             ) : (
               <span className="px-3 py-1 rounded-full bg-zinc-900/90 text-zinc-300 font-semibold text-xs border border-zinc-700/80 shadow backdrop-blur-md">
@@ -253,10 +253,10 @@ export default function DiceCup({
           style={{
             transform: `translate3d(${cupPos.x}px, ${cupPos.y}px, 0px)`,
           }}
-          className={`relative mb-4 z-30 transition-transform duration-75 ${
+          className={`relative mb-3 z-30 transition-transform duration-75 ${
             canRollNow ? 'cursor-grab active:cursor-grabbing hover:scale-105' : 'cursor-default'
           }`}
-          title={canRollNow ? 'Mantén presionado y agita el ratón o el teléfono. ¡Al soltar se lanzan los dados!' : 'Cubilete Cacho'}
+          title={canRollNow ? 'Mantén presionado y agita el vaso para tirar' : 'Cubilete Cacho'}
         >
           <div
             className={`w-36 h-40 sm:w-44 sm:h-48 rounded-b-[2.5rem] rounded-t-xl bg-gradient-to-b from-[#54250c] via-[#381606] to-[#1a0802] border-4 border-amber-900/90 shadow-2d-cup flex flex-col items-center justify-between transition-transform ${
@@ -284,37 +284,29 @@ export default function DiceCup({
             </div>
           </div>
 
-          {/* Dynamic Helper Prompt */}
+          {/* Clean Short Helper Badge */}
           {canRollNow && (
-            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap z-40">
-              <span className="px-4 py-1.5 rounded-full bg-black/90 backdrop-blur-md text-amber-300 border border-amber-400/90 text-xs font-black flex items-center gap-1.5 shadow-gold-glow animate-pulse">
-                <Hand className="w-4 h-4 text-amber-400" />
-                <span>
-                  {pendingCantoData
-                    ? '🎯 Canto asignado. ¡Mueve y suelta el vaso para lanzar!'
-                    : '👋 Mueve/Agita el vaso y suelta para lanzar'}
-                </span>
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap z-40">
+              <span className="px-3.5 py-1 rounded-full bg-black/90 backdrop-blur-md text-amber-300 border border-amber-400/90 text-xs font-bold flex items-center gap-1.5 shadow-gold-glow animate-pulse">
+                <Hand className="w-3.5 h-3.5 text-amber-400" />
+                <span>Agita o arrastra para tirar</span>
               </span>
             </div>
           )}
         </div>
       )}
 
-      {/* 2. Active Dice Table Tray (RENDERS ONLY UNKEPT ACTIVE DICE - NO DUPLICATES!) */}
+      {/* Active Dice Table Tray */}
       {!isDiceInCup && hasRolledThisTurn && activeDiceIndices.length > 0 ? (
-        <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-4 sm:p-5 border border-emerald-500/20 shadow-2xl z-10 animate-fade-in">
-          <div className="text-center mb-3">
-            <p className="text-[11px] uppercase tracking-widest text-emerald-300 font-bold font-mono">
-              {isMyTurn
-                ? rollsLeft > 0
-                  ? '👇 Toca los dados que quieres GUARDAR (Suben al área de dados guardados)'
-                  : '⚠️ Sin tiros restantes. Abre "Mi Tablero" para anotar o tachar'
-                : '⏳ Esperando la jugada del oponente...'}
-            </p>
+        <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-3.5 sm:p-4 border border-emerald-500/20 shadow-2xl z-10 animate-fade-in">
+          <div className="text-center mb-2.5">
+            <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-emerald-300 font-bold font-mono">
+              🔒 Toca un dado para guardarlo
+            </span>
           </div>
 
-          {/* Active Unkept Dice Grid (Count matches active dice remaining!) */}
-          <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4.5">
+          {/* Active Unkept Dice Grid */}
+          <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4">
             {activeDiceIndices.map((idx) => {
               const val = dice[idx];
               const canToggle = isMyTurn && hasRolledThisTurn && rollsLeft > 0 && !cantoFailed;
@@ -326,20 +318,19 @@ export default function DiceCup({
                   className={`relative group flex flex-col items-center transition-all transform ${
                     canToggle ? 'cursor-pointer hover:scale-110 active:scale-95' : 'cursor-default'
                   }`}
-                  title="Toca para GUARDAR este dado (subirá al área guardada)"
+                  title="Toca para guardar este dado"
                 >
-                  {/* 2.5D Die Cube */}
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-19 md:h-19 rounded-2xl p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform bg-gradient-to-br from-amber-50 via-zinc-100 to-zinc-300 text-zinc-900 border-2 border-zinc-300 shadow-2d-die hover:border-amber-400/80">
+                  <div className="w-12 h-12 sm:w-15 sm:h-15 md:w-18 md:h-18 rounded-2xl p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform bg-gradient-to-br from-amber-50 via-zinc-100 to-zinc-300 text-zinc-900 border-2 border-zinc-300 shadow-2d-die hover:border-amber-400/80">
                     {PIP_POSITIONS[val]?.map((posClass, pIdx) => (
                       <span
                         key={pIdx}
-                        className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 rounded-full posClass bg-zinc-900 die-pip-sunken"
+                        className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 rounded-full posClass bg-zinc-900 die-pip-sunken`}
                       />
                     ))}
                   </div>
 
                   <div className="mt-1 flex items-center justify-center">
-                    <span className="px-2 py-0.5 rounded bg-zinc-900/80 text-zinc-400 text-[9px] sm:text-[10px] font-medium flex items-center gap-0.5 border border-zinc-800 group-hover:text-amber-300 group-hover:border-amber-500/50">
+                    <span className="px-2 py-0.5 rounded bg-zinc-900/80 text-zinc-400 text-[9px] font-medium flex items-center gap-0.5 border border-zinc-800 group-hover:text-amber-300 group-hover:border-amber-500/50">
                       <Lock className="w-2.5 h-2.5" /> Guardar
                     </span>
                   </div>
@@ -351,9 +342,9 @@ export default function DiceCup({
       ) : !hasRolledThisTurn ? (
         /* Prompt before initial roll */
         <div className="text-center mt-2 z-10">
-          <p className="text-xs sm:text-sm font-black font-cinzel text-gold-shine tracking-wider bg-black/85 px-4 py-2 rounded-full border border-amber-400/70 shadow-gold-glow">
-            🎲 Los 5 dados están dentro del Cacho. ¡Mueve y suelta el vaso para lanzar!
-          </p>
+          <span className="text-xs sm:text-sm font-bold font-cinzel text-gold-shine tracking-wider bg-black/85 px-4 py-1.5 rounded-full border border-amber-400/70 shadow-gold-glow">
+            🎲 Agita o arrastra el Cacho para tirar
+          </span>
         </div>
       ) : null}
     </div>
