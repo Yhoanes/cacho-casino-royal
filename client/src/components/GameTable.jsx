@@ -60,13 +60,18 @@ export default function GameTable({
     }
   }, [turnState?.cantoResolution?.active]);
 
-  // Track new chat messages and trigger floating speech bubbles on player avatars
+  // Track new chat messages and trigger floating speech bubbles on player avatars (mutually exclusive with emotes)
   useEffect(() => {
     if (chatMessages && chatMessages.length > 0) {
       const latest = chatMessages[chatMessages.length - 1];
       if (latest && latest.userId && latest.text) {
         const uId = latest.userId;
         setActiveChatBubbles((prev) => ({ ...prev, [uId]: latest.text }));
+
+        // Clear active emote for this user when a new chat arrives
+        if (activeEmotes && activeEmotes[uId]) {
+          delete activeEmotes[uId];
+        }
 
         const timer = setTimeout(() => {
           setActiveChatBubbles((prev) => {
@@ -79,7 +84,7 @@ export default function GameTable({
         return () => clearTimeout(timer);
       }
     }
-  }, [chatMessages]);
+  }, [chatMessages, activeEmotes]);
 
   // Auto-open MyBoardModal when local turn finishes all rolls or canto fails
   useEffect(() => {
@@ -107,6 +112,18 @@ export default function GameTable({
   const handleConfirmCantoChoice = (cantoData) => {
     setPendingCantoData(cantoData);
     setIsCantoModalOpen(false);
+  };
+
+  const handleEmoteSendWithClear = (emote) => {
+    // When sending an emote, clear any active chat bubble for local user
+    if (currentUserId) {
+      setActiveChatBubbles((prev) => {
+        const next = { ...prev };
+        delete next[currentUserId];
+        return next;
+      });
+    }
+    onSendEmote(emote);
   };
 
   const calculateClientScoringOptions = (dice, isReal, board) => {
@@ -251,12 +268,11 @@ export default function GameTable({
         )}
       </div>
 
-      {/* 5. HUD Bottom Action Controls (Lanzar Cacho & Cantar Buttons) */}
+      {/* 5. HUD Bottom Action Controls */}
       <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex justify-center gap-3 sm:gap-4 w-[90%] max-w-md z-50">
         <ActionPanel
           turnState={turnState}
           isMyTurn={isMyTurn}
-          onRoll={(cantoData) => handleRollClick(cantoData)}
           onOpenCantoModal={() => setIsCantoModalOpen(true)}
           isRolling={isRolling}
           player={localPlayer}
@@ -275,7 +291,7 @@ export default function GameTable({
         currentUserId={currentUserId}
         chatMessages={chatMessages}
         onSendMessage={onSendMessage}
-        onSendEmote={onSendEmote}
+        onSendEmote={handleEmoteSendWithClear}
       />
 
       {/* Local Player "Mi Tablero" Desplegable Modal */}
