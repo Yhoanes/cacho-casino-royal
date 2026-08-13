@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Lock, Unlock, Sparkles, Target, Dices, Smartphone, Move, Hand } from 'lucide-react';
+import { Lock, Unlock, Sparkles, Target, Dices, Smartphone, Hand, Undo2 } from 'lucide-react';
 
 const PIP_POSITIONS = {
   1: ['col-start-2 row-start-2'],
@@ -167,9 +167,10 @@ export default function DiceCup({
     window.addEventListener('touchend', handleGlobalEnd);
   };
 
-  // Dice state definitions
+  // Dice state definitions: Kept (Saved in Top Dock) vs Active (On Table)
   const isDiceInCup = isRolling || isShakingMotion || isDragging || !hasRolledThisTurn;
   const savedDiceIndices = dice.map((_, idx) => idx).filter((idx) => keptDice[idx]);
+  const activeDiceIndices = dice.map((_, idx) => idx).filter((idx) => !keptDice[idx]);
 
   const activeCantoLabel = pendingCantoData
     ? `Canto Elegido: ${pendingCantoData.predictedSum} (${pendingCantoData.targetCategory.toUpperCase()})`
@@ -179,7 +180,7 @@ export default function DiceCup({
 
   return (
     <div className="flex flex-col items-center justify-center p-1 relative select-none w-full min-h-[300px]">
-      {/* Saved Dice Dock (En el área de Dados Guardados al agitar o entre tiros) */}
+      {/* 1. Top Saved Dice Dock (ONLY RENDERS KEPT DICE!) */}
       {hasRolledThisTurn && savedDiceIndices.length > 0 && (
         <div className="mb-3 px-4 py-2 rounded-2xl bg-zinc-950/90 border border-amber-400/90 shadow-gold-glow backdrop-blur-md flex items-center gap-3 z-30 animate-fade-in">
           <div className="flex items-center gap-1 text-[11px] uppercase font-black tracking-widest text-amber-300">
@@ -195,13 +196,16 @@ export default function DiceCup({
                   key={idx}
                   onClick={() => canToggle && onToggleKeep(idx)}
                   className="relative group cursor-pointer transform hover:scale-110 active:scale-95 transition-transform"
-                  title="Toca para liberar este dado de vuelta al vaso"
+                  title="Toca para desguardar este dado (vuelve a la mesa)"
                 >
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl p-1 bg-gradient-to-br from-amber-100 via-amber-200 to-amber-400 text-zinc-950 border-2 border-amber-400 shadow-2d-die-kept grid grid-cols-3 grid-rows-3 items-center justify-items-center ring-2 ring-amber-400/40">
+                  <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl p-1 bg-gradient-to-br from-amber-100 via-amber-200 to-amber-400 text-zinc-950 border-2 border-amber-400 shadow-2d-die-kept grid grid-cols-3 grid-rows-3 items-center justify-items-center ring-2 ring-amber-400/50">
                     {PIP_POSITIONS[val]?.map((posClass, pIdx) => (
                       <span key={pIdx} className={`w-1.5 h-1.5 rounded-full ${posClass} bg-amber-950 die-pip-sunken-kept`} />
                     ))}
                   </div>
+                  <span className="absolute -bottom-1 -right-1 p-0.5 bg-amber-500 rounded-full text-zinc-950 shadow">
+                    <Undo2 className="w-2.5 h-2.5 stroke-[3]" />
+                  </span>
                 </div>
               );
             })}
@@ -296,23 +300,23 @@ export default function DiceCup({
         </div>
       )}
 
-      {/* 5-Slot Fixed Position Dice Tray (Stable 5-column grid) */}
-      {!isDiceInCup && hasRolledThisTurn ? (
+      {/* 2. Active Dice Table Tray (RENDERS ONLY UNKEPT ACTIVE DICE - NO DUPLICATES!) */}
+      {!isDiceInCup && hasRolledThisTurn && activeDiceIndices.length > 0 ? (
         <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-4 sm:p-5 border border-emerald-500/20 shadow-2xl z-10 animate-fade-in">
           <div className="text-center mb-3">
             <p className="text-[11px] uppercase tracking-widest text-emerald-300 font-bold font-mono">
               {isMyTurn
                 ? rollsLeft > 0
-                  ? '👇 Toca los dados para GUARDAR / LIBERAR (Al agitar se mueven al área guardada)'
+                  ? '👇 Toca los dados que quieres GUARDAR (Suben al área de dados guardados)'
                   : '⚠️ Sin tiros restantes. Abre "Mi Tablero" para anotar o tachar'
                 : '⏳ Esperando la jugada del oponente...'}
             </p>
           </div>
 
-          {/* Fixed 5-Column Grid Layout */}
-          <div className="grid grid-cols-5 gap-2 sm:gap-3.5 items-center justify-items-center">
-            {dice.map((val, idx) => {
-              const isKept = keptDice[idx];
+          {/* Active Unkept Dice Grid (Count matches active dice remaining!) */}
+          <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4.5">
+            {activeDiceIndices.map((idx) => {
+              const val = dice[idx];
               const canToggle = isMyTurn && hasRolledThisTurn && rollsLeft > 0 && !cantoFailed;
 
               return (
@@ -320,39 +324,24 @@ export default function DiceCup({
                   key={idx}
                   onClick={() => canToggle && onToggleKeep(idx)}
                   className={`relative group flex flex-col items-center transition-all transform ${
-                    canToggle ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'
+                    canToggle ? 'cursor-pointer hover:scale-110 active:scale-95' : 'cursor-default'
                   }`}
-                  title={isKept ? 'Dado Guardado (al agitar se moverá arriba)' : 'Dado Libre (al agitar entrará al vaso)'}
+                  title="Toca para GUARDAR este dado (subirá al área guardada)"
                 >
                   {/* 2.5D Die Cube */}
-                  <div
-                    className={`w-11 h-11 sm:w-15 sm:h-15 md:w-18 md:h-18 rounded-2xl p-1.5 sm:p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform ${
-                      isKept
-                        ? 'bg-gradient-to-br from-amber-100 via-amber-200 to-amber-400 text-zinc-950 border-2 sm:border-3 border-amber-400 shadow-2d-die-kept scale-105 ring-2 sm:ring-4 ring-amber-400/50'
-                        : 'bg-gradient-to-br from-amber-50 via-zinc-100 to-zinc-300 text-zinc-900 border-2 border-zinc-300 shadow-2d-die hover:border-amber-400/80'
-                    }`}
-                  >
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-19 md:h-19 rounded-2xl p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform bg-gradient-to-br from-amber-50 via-zinc-100 to-zinc-300 text-zinc-900 border-2 border-zinc-300 shadow-2d-die hover:border-amber-400/80">
                     {PIP_POSITIONS[val]?.map((posClass, pIdx) => (
                       <span
                         key={pIdx}
-                        className={`w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full ${posClass} ${
-                          isKept ? 'bg-amber-950 die-pip-sunken-kept' : 'bg-zinc-900 die-pip-sunken'
-                        }`}
+                        className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 rounded-full posClass bg-zinc-900 die-pip-sunken"
                       />
                     ))}
                   </div>
 
-                  {/* Fixed Status Lock Badge */}
                   <div className="mt-1 flex items-center justify-center">
-                    {isKept ? (
-                      <span className="px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-300 border border-amber-400/60 text-[8px] sm:text-[9px] font-black flex items-center gap-0.5 shadow-sm">
-                        <Lock className="w-2 h-2 text-amber-400" /> Guardado
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.5 rounded bg-zinc-900/80 text-zinc-400 text-[8px] sm:text-[9px] font-medium flex items-center gap-0.5 border border-zinc-800 group-hover:text-amber-300 group-hover:border-amber-500/50">
-                        <Unlock className="w-2" /> Libre
-                      </span>
-                    )}
+                    <span className="px-2 py-0.5 rounded bg-zinc-900/80 text-zinc-400 text-[9px] sm:text-[10px] font-medium flex items-center gap-0.5 border border-zinc-800 group-hover:text-amber-300 group-hover:border-amber-500/50">
+                      <Lock className="w-2.5 h-2.5" /> Guardar
+                    </span>
                   </div>
                 </div>
               );
