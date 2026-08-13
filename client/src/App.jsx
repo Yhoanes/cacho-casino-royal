@@ -10,8 +10,23 @@ export default function App() {
   const [socketId, setSocketId] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const [activeEmotes, setActiveEmotes] = useState({}); // { userId: emoteString }
+  const [inviteCode, setInviteCode] = useState('');
 
   const userId = getOrCreateUserId();
+
+  // Extract invite room code from URL parameters (?room=CODE)
+  useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomParam = urlParams.get('room');
+      if (roomParam) {
+        const cleanCode = roomParam.trim().toUpperCase();
+        setInviteCode(cleanCode);
+      }
+    } catch (err) {
+      console.warn('Could not parse URL invite param:', err);
+    }
+  }, []);
 
   useEffect(() => {
     // Attempt silent reconnection on socket connect if session exists in localStorage
@@ -207,6 +222,7 @@ export default function App() {
             errorMessage={errorMessage}
             onKickPlayer={handleKickPlayer}
             onLeaveRoom={handleLeaveRoom}
+            initialRoomCode={inviteCode}
           />
         </div>
       ) : (

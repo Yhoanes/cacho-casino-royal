@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusCircle, LogIn, Users, Copy, Check, Play, Sparkles, Dices, LogOut, Crown, UserMinus, ShieldCheck } from 'lucide-react';
 import VipAvatar from './VipAvatar';
 
@@ -12,11 +12,19 @@ export default function Lobby({
   errorMessage,
   onKickPlayer,
   onLeaveRoom,
+  initialRoomCode = '',
 }) {
-  const [mode, setMode] = useState('MAIN'); // 'MAIN', 'CREATE', 'JOIN'
+  const [mode, setMode] = useState(initialRoomCode ? 'JOIN' : 'MAIN'); // 'MAIN', 'CREATE', 'JOIN'
   const [playerName, setPlayerName] = useState('');
-  const [roomCodeInput, setRoomCodeInput] = useState('');
+  const [roomCodeInput, setRoomCodeInput] = useState(initialRoomCode);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (initialRoomCode) {
+      setMode('JOIN');
+      setRoomCodeInput(initialRoomCode.toUpperCase());
+    }
+  }, [initialRoomCode]);
 
   // If player is inside an active lobby
   if (room) {
@@ -24,9 +32,26 @@ export default function Lobby({
     const canStart = room.players.length >= 2;
 
     const copyCode = () => {
-      navigator.clipboard.writeText(room.code);
+      const inviteUrl = `${window.location.origin}/?room=${room.code}`;
+      const inviteText = `🎲 ¡Únete a mi partida de Cacho Casino Royal! Código de sala: ${room.code}\nEntra gratis jugando aquí: ${inviteUrl}`;
+      
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(inviteText);
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = inviteText;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+      } catch (err) {
+        console.warn('Clipboard copy failed:', err);
+      }
+
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2500);
     };
 
     return (
@@ -56,15 +81,21 @@ export default function Lobby({
           <button
             type="button"
             onClick={copyCode}
-            className="p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-700 hover:border-amber-400 text-zinc-300 hover:text-amber-300 transition-all shadow-md hover:scale-105 active:scale-95 cursor-pointer"
-            title="Copiar código"
+            className="p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-700 hover:border-amber-400 text-zinc-300 hover:text-amber-300 transition-all shadow-md hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-2"
+            title="Copiar código e invitación para WhatsApp"
           >
-            {copied ? <Check className="w-6 h-6 text-emerald-400" /> : <Copy className="w-6 h-6" />}
+            {copied ? (
+              <Check className="w-6 h-6 text-emerald-400" />
+            ) : (
+              <Copy className="w-6 h-6 text-amber-400" />
+            )}
           </button>
         </div>
 
         <p className="text-xs md:text-sm text-zinc-300 mb-6 font-medium">
-          Comparte este código con tus amigos para que entren a la mesa (Mínimo 2 jugadores).
+          {copied
+            ? '¡Invitación y código copiados al portapapeles! Pégalos en WhatsApp.'
+            : 'Toca el botón para copiar la invitación directa a WhatsApp.'}
         </p>
 
         {/* Players List */}
@@ -175,6 +206,14 @@ export default function Lobby({
         El auténtico Cacho Boliviano multijugador en tiempo real con estética de Casino 2.5D.
       </p>
 
+      {/* Invite Notification Banner */}
+      {initialRoomCode && (
+        <div className="mb-5 p-3.5 rounded-2xl bg-amber-500/20 border border-amber-400/80 text-amber-300 text-xs font-black animate-pulse flex items-center justify-center gap-2 shadow-gold-glow">
+          <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
+          <span>¡Te invitaron a la sala {initialRoomCode}! Ingresa tu apodo para entrar.</span>
+        </div>
+      )}
+
       {errorMessage && (
         <div className="mb-5 p-4 rounded-2xl bg-rose-950/90 border-2 border-rose-600 text-rose-200 text-xs font-extrabold animate-bounce-short shadow-2xl flex items-center gap-3">
           <span className="text-xl">⚠️</span>
@@ -218,6 +257,7 @@ export default function Lobby({
                 onChange={(e) => setPlayerName(e.target.value)}
                 placeholder="Ej. Checho"
                 maxLength={14}
+                autoFocus
                 className="w-full px-4 py-3.5 rounded-2xl bg-zinc-950 border-2 border-amber-500/40 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400 font-bold"
               />
             </div>
