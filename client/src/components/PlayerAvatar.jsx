@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crown } from 'lucide-react';
+import { Crown, MessageSquare } from 'lucide-react';
 import VipAvatar from './VipAvatar';
 
 export default function PlayerAvatar({
@@ -8,6 +8,7 @@ export default function PlayerAvatar({
   isHost = false,
   isMe = false,
   activeEmote = null,
+  activeChatMessage = null,
   size = 'md',
   onClick = null,
   className = '',
@@ -23,10 +24,18 @@ export default function PlayerAvatar({
         onClick ? 'cursor-pointer hover:scale-105 active:scale-95 transition-transform' : ''
       } ${className}`}
     >
-      {/* Floating Animated Emote Overlay (Projected to the RIGHT, z-[99999], 100% unclipped) */}
+      {/* Floating Animated Emote Overlay */}
       {activeEmote && (
         <div className="absolute top-1/2 left-[115%] -translate-y-1/2 text-5xl sm:text-6xl z-[99999] animate-bounce pointer-events-none whitespace-nowrap drop-shadow-[0_10px_25px_rgba(0,0,0,0.95)]">
           {activeEmote}
+        </div>
+      )}
+
+      {/* Floating Chat Speech Bubble Overlay */}
+      {activeChatMessage && (
+        <div className="absolute top-1/2 left-[115%] -translate-y-1/2 bg-black/95 backdrop-blur-md border border-amber-400/90 text-amber-300 text-xs sm:text-sm font-bold px-3 py-1.5 rounded-2xl shadow-gold-glow animate-bounce-short z-[99999] pointer-events-none whitespace-nowrap max-w-[160px] truncate flex items-center gap-1.5">
+          <MessageSquare className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="truncate">{activeChatMessage}</span>
         </div>
       )}
 

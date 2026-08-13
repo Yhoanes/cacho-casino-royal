@@ -33,6 +33,8 @@ export default function GameTable({
   const [isOpponentsOverviewOpen, setIsOpponentsOverviewOpen] = useState(false);
   const [isMyBoardModalOpen, setIsMyBoardModalOpen] = useState(false);
   const [showCantoResolutionOverlay, setShowCantoResolutionOverlay] = useState(false);
+  const [pendingCantoData, setPendingCantoData] = useState(null);
+  const [activeChatBubbles, setActiveChatBubbles] = useState({});
 
   const { players = [], currentTurnIndex, turnState = {}, status, winner, winReason, hostUserId } = room;
 
@@ -58,6 +60,27 @@ export default function GameTable({
     }
   }, [turnState?.cantoResolution?.active]);
 
+  // Track new chat messages and trigger floating speech bubbles on player avatars
+  useEffect(() => {
+    if (chatMessages && chatMessages.length > 0) {
+      const latest = chatMessages[chatMessages.length - 1];
+      if (latest && latest.userId && latest.text) {
+        const uId = latest.userId;
+        setActiveChatBubbles((prev) => ({ ...prev, [uId]: latest.text }));
+
+        const timer = setTimeout(() => {
+          setActiveChatBubbles((prev) => {
+            const next = { ...prev };
+            delete next[uId];
+            return next;
+          });
+        }, 5000);
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [chatMessages]);
+
   // Auto-open MyBoardModal when local turn finishes all rolls or canto fails
   useEffect(() => {
     if (isMyTurn && (turnState.rollsLeft === 0 || turnState.cantoFailed)) {
@@ -68,13 +91,22 @@ export default function GameTable({
     }
   }, [isMyTurn, turnState.rollsLeft, turnState.cantoFailed]);
 
-  const handleRollClick = (cantoData = null) => {
+  const handleRollClick = (cantoDataOverride = null) => {
     if (!isMyTurn || turnState.rollsLeft <= 0) return;
+    const cantoToUse = cantoDataOverride || pendingCantoData;
+
     setIsRolling(true);
     setTimeout(() => {
       setIsRolling(false);
     }, 600);
-    onRollDice(cantoData);
+
+    onRollDice(cantoToUse);
+    setPendingCantoData(null);
+  };
+
+  const handleConfirmCantoChoice = (cantoData) => {
+    setPendingCantoData(cantoData);
+    setIsCantoModalOpen(false);
   };
 
   const calculateClientScoringOptions = (dice, isReal, board) => {
@@ -128,6 +160,7 @@ export default function GameTable({
               isHost={pIsHost}
               isMe={isMe}
               activeEmote={activeEmotes[p.userId]}
+              activeChatMessage={activeChatBubbles[p.userId]}
               size="sm"
               onClick={() => isMe ? setIsMyBoardModalOpen(true) : setIsOpponentsOverviewOpen(true)}
             />
@@ -195,6 +228,7 @@ export default function GameTable({
             onToggleKeep={onToggleKeepDie}
             isRolling={isRolling}
             activeCanto={turnState.activeCanto}
+            pendingCantoData={pendingCantoData}
             onTriggerRoll={() => handleRollClick()}
           />
         </div>
@@ -277,7 +311,7 @@ export default function GameTable({
       <CantoModal
         isOpen={isCantoModalOpen}
         onClose={() => setIsCantoModalOpen(false)}
-        onConfirmCanto={(cantoData) => handleRollClick(cantoData)}
+        onConfirmCanto={handleConfirmCantoChoice}
         player={localPlayer}
         keptDice={turnState.keptDice}
         dice={turnState.dice}
