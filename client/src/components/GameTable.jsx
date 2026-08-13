@@ -228,9 +228,9 @@ export default function GameTable({
 
   return (
     <div className="bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-700 via-emerald-950 to-zinc-950 relative w-full h-[100dvh] overflow-hidden select-none font-outfit">
-      {/* Spectator Mode Top Banner Indicator */}
+      {/* Spectator Mode Top Banner Indicator (Un-cluttered Top Center) */}
       {isSpectator && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-purple-950/95 border border-purple-400 text-purple-200 px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-black tracking-wider flex items-center gap-1.5 shadow-xl z-40 animate-pulse whitespace-nowrap">
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 bg-purple-950/95 border border-purple-400 text-purple-200 px-3.5 py-1 rounded-full text-[10px] sm:text-xs font-black tracking-wider flex items-center gap-1.5 shadow-xl z-40 animate-pulse whitespace-nowrap">
           <Eye className="w-3.5 h-3.5 text-purple-300 stroke-[2.5]" />
           <span>MODO ESPECTADOR</span>
         </div>
@@ -269,29 +269,9 @@ export default function GameTable({
         )}
       </div>
 
-      {/* 2. HUD Top Controls Bar (Non-Overlapping Flex Bar) */}
-      <div className="absolute top-2 sm:top-4 right-2 sm:right-4 flex items-center gap-1.5 sm:gap-2.5 z-50 max-w-[calc(100vw-110px)] overflow-x-auto no-scrollbar">
-        {/* Copy Room Code & WhatsApp Share Pill (📋) */}
-        <button
-          type="button"
-          onClick={handleCopyRoomInvite}
-          className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-zinc-950 font-black text-xs transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 cursor-pointer border border-yellow-200 shrink-0"
-          title="Copiar Código de Sala y Link para WhatsApp"
-        >
-          {copiedInvite ? (
-            <>
-              <Check className="w-4 h-4 text-emerald-950 stroke-[3]" />
-              <span className="font-black text-emerald-950 text-[10px] sm:text-xs">¡Copiado!</span>
-            </>
-          ) : (
-            <>
-              <Share2 className="w-4 h-4 text-zinc-950 stroke-[2.5]" />
-              <span className="font-cinzel text-[10px] sm:text-xs tracking-wider">Sala: {room.code}</span>
-            </>
-          )}
-        </button>
-
-        {/* WebRTC Live Audio Voice Controls Pill */}
+      {/* 2. HUD Top-Right Controls Bar (Clean Row with Voice Controls & Action Buttons) */}
+      <div className="fixed top-3 right-3 sm:right-4 flex items-center gap-1.5 sm:gap-2 z-50">
+        {/* Voice Chat Controls (🎤 Mic Button + 🔊 Speaker Button) */}
         <VoiceChatControls
           isAudioConnected={isAudioConnected}
           isMuted={isMuted}
@@ -305,21 +285,21 @@ export default function GameTable({
           <button
             type="button"
             onClick={handleSwitchToPlayer}
-            className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 cursor-pointer border border-emerald-300 shrink-0"
+            className="p-2 sm:p-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 cursor-pointer border border-emerald-300 shrink-0"
             title="Unirse como jugador activo a la mesa"
           >
             <UserPlus className="w-4 h-4 stroke-[2.5]" />
-            <span className="hidden md:inline font-cinzel text-[10px] sm:text-xs">Unirse</span>
+            <span className="hidden md:inline font-cinzel text-xs">Unirse</span>
           </button>
         ) : (
           <button
             type="button"
             onClick={handleSwitchToSpectator}
-            className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-purple-950/90 hover:bg-purple-900 border border-purple-400/80 text-purple-200 font-bold text-xs transition-all shadow hover:scale-105 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
+            className="p-2 sm:p-2.5 rounded-2xl bg-purple-950/90 hover:bg-purple-900 border border-purple-400/80 text-purple-200 font-bold text-xs transition-all shadow hover:scale-105 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
             title="Pasar a Modo Espectador (Observar)"
           >
             <Eye className="w-4 h-4 stroke-[2.5]" />
-            <span className="hidden lg:inline font-cinzel text-[10px] sm:text-xs">Espectar</span>
+            <span className="hidden lg:inline font-cinzel text-xs">Espectar</span>
           </button>
         )}
 
@@ -328,7 +308,7 @@ export default function GameTable({
           <button
             type="button"
             onClick={() => setIsMyBoardModalOpen(true)}
-            className={`p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 font-black text-xs cursor-pointer shrink-0 ${
+            className={`p-2 sm:p-2.5 rounded-2xl border transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 font-black text-xs cursor-pointer shrink-0 ${
               isMyTurn && turnState.rollsLeft === 0
                 ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 text-zinc-950 border-amber-300 animate-bounce-short shadow-gold-glow'
                 : 'bg-zinc-900/90 border-zinc-700/80 hover:border-amber-400 text-amber-300'
@@ -336,7 +316,7 @@ export default function GameTable({
             title="Ver / Desplegar Mi Tablero Michi"
           >
             <LayoutGrid className="w-4 h-4 stroke-[2.5]" />
-            <span className="hidden md:inline font-cinzel text-[10px] sm:text-xs">Mi Tablero</span>
+            <span className="hidden md:inline font-cinzel text-xs">Mi Tablero</span>
           </button>
         )}
 
@@ -344,7 +324,7 @@ export default function GameTable({
         <button
           type="button"
           onClick={() => setIsLogsModalOpen(true)}
-          className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-zinc-900/90 border border-zinc-700/80 hover:border-amber-400 text-amber-400 transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 font-bold text-xs cursor-pointer shrink-0"
+          className="p-2 sm:p-2.5 rounded-2xl bg-zinc-900/90 border border-zinc-700/80 hover:border-amber-400 text-amber-400 transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center justify-center cursor-pointer shrink-0"
           title="Historial de Jugadas"
         >
           <ScrollText className="w-4 h-4 stroke-[2.5]" />
@@ -354,7 +334,7 @@ export default function GameTable({
         <button
           type="button"
           onClick={() => setIsOpponentsOverviewOpen(true)}
-          className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-950 via-zinc-900 to-amber-950 border border-amber-400 text-amber-300 transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 font-extrabold text-xs cursor-pointer shrink-0"
+          className="p-2 sm:p-2.5 rounded-2xl bg-gradient-to-r from-amber-950 via-zinc-900 to-amber-950 border border-amber-400 text-amber-300 transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center justify-center cursor-pointer shrink-0"
           title="Espiar Rivales (Tableros)"
         >
           <BarChart3 className="w-4 h-4 stroke-[2.5] text-amber-400" />
@@ -364,14 +344,36 @@ export default function GameTable({
         <button
           type="button"
           onClick={onLeaveRoom}
-          className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-rose-950/90 hover:bg-rose-950 border border-rose-600/80 text-rose-200 transition-all shadow hover:scale-105 active:scale-95 flex items-center gap-1 font-bold text-xs cursor-pointer shrink-0"
+          className="p-2 sm:p-2.5 rounded-2xl bg-rose-950/90 hover:bg-rose-950 border border-rose-600/80 text-rose-200 transition-all shadow hover:scale-105 active:scale-95 flex items-center justify-center cursor-pointer shrink-0"
           title="Salir de la Sala"
         >
           <DoorOpen className="w-4 h-4 stroke-[2.5]" />
         </button>
       </div>
 
-      {/* 3. Center Arena Stage (Clean Emerald Felt Table for Cacho Cup & Dice) */}
+      {/* 3. Bottom-Left Floating Room Code & Share Invite Pill (Moved cleanly to bottom-left!) */}
+      <div className="fixed bottom-4 left-3 sm:left-4 z-[9999] pointer-events-auto">
+        <button
+          type="button"
+          onClick={handleCopyRoomInvite}
+          className="px-3 py-2 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-zinc-950 font-extrabold text-xs transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer border border-yellow-200"
+          title="Copiar Código de Sala y Link para WhatsApp"
+        >
+          {copiedInvite ? (
+            <>
+              <Check className="w-4 h-4 text-emerald-950 stroke-[3]" />
+              <span className="font-black text-emerald-950">¡Copiado!</span>
+            </>
+          ) : (
+            <>
+              <Share2 className="w-4 h-4 text-zinc-950 stroke-[2.5]" />
+              <span className="font-cinzel text-xs tracking-wider">Sala: {room.code}</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* 4. Center Arena Stage (Clean Emerald Felt Table for Cacho Cup & Dice) */}
       <main className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center gap-3 sm:gap-6 w-full max-w-xs sm:max-w-lg md:max-w-xl px-2 z-10">
         {/* Interactive Physical Dice Tray & Mouse Drag / Device Motion Cacho Cup */}
         <div className="w-full flex justify-center transform scale-100 sm:scale-105 md:scale-110 transition-transform">
@@ -389,7 +391,7 @@ export default function GameTable({
         </div>
       </main>
 
-      {/* 4. Single Floating Status Pill */}
+      {/* 5. Single Floating Status Pill */}
       <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-md border border-amber-400/80 text-amber-300 px-5 py-2 rounded-full text-xs sm:text-sm font-bold shadow-xl z-30 pointer-events-none whitespace-nowrap flex items-center gap-2 max-w-[92vw] truncate">
         {isSpectator ? (
           <span className="truncate">👁️ Observando a {currentPlayer.name}...</span>
@@ -408,7 +410,7 @@ export default function GameTable({
         )}
       </div>
 
-      {/* 5. HUD Bottom Action Controls */}
+      {/* 6. HUD Bottom Action Controls */}
       {!isSpectator && (
         <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex justify-center gap-3 sm:gap-4 w-[90%] max-w-md z-50">
           <ActionPanel
