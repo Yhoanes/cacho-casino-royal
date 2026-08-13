@@ -48,7 +48,7 @@ export default function App() {
     socket.on('joined_room', ({ roomCode, room }) => {
       setRoom(room);
       setErrorMessage('');
-      const p = room.players.find((p) => p.userId === userId);
+      const p = room.players.find((p) => p.userId === userId) || room.spectators?.find((s) => s.userId === userId);
       saveStoredSession({
         roomCode: room.code,
         playerName: p?.name || 'Jugador',
@@ -173,29 +173,29 @@ export default function App() {
 
   const handleSendMessage = (text) => {
     if (!room) return;
-    const p = room.players.find((player) => player.userId === userId);
+    const p = room.players.find((player) => player.userId === userId) || room.spectators?.find((s) => s.userId === userId);
     socket.emit('send_chat_message', {
       roomCode: room.code,
       userId,
-      senderName: p?.name || 'Jugador',
+      senderName: p?.name || 'Espectador',
       text,
     });
   };
 
   const handleSendEmote = (emote) => {
     if (!room) return;
-    const p = room.players.find((player) => player.userId === userId);
+    const p = room.players.find((player) => player.userId === userId) || room.spectators?.find((s) => s.userId === userId);
     socket.emit('send_emote', {
       roomCode: room.code,
       userId,
-      senderName: p?.name || 'Jugador',
+      senderName: p?.name || 'Espectador',
       emote,
     });
   };
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center">
-      {!room || room.status === 'LOBBY' ? (
+      {!room || (room.status === 'LOBBY' && !room.spectators?.some((s) => s.userId === userId)) ? (
         <div className="w-full min-h-screen flex items-center justify-center p-4">
           <Lobby
             onCreateRoom={handleCreateRoom}
@@ -212,6 +212,7 @@ export default function App() {
       ) : (
         <GameTable
           room={room}
+          socket={socket}
           currentSocketId={socketId || socket.id}
           currentUserId={userId}
           onRollDice={handleRollDice}

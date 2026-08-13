@@ -1,7 +1,7 @@
 /**
  * RoomManager.js
  * Manages game lobbies, persistent user IDs, offline states, turn reassignments,
- * host kick privileges, and room lifecycle.
+ * host kick privileges, spectators, and room lifecycle.
  */
 
 const { CachoEngine } = require('./CachoEngine');
@@ -44,6 +44,7 @@ class RoomManager {
           totalScore: 0,
         },
       ],
+      spectators: [],
       startingPlayerIndex: 0,
       currentTurnIndex: 0,
       gameRound: 1,
@@ -82,19 +83,37 @@ class RoomManager {
       return { error: `La sala "${cleanCode}" no existe o el código es incorrecto.` };
     }
 
+    if (!room.spectators) room.spectators = [];
+
     const effectiveUserId = userId || `usr_${socketId}`;
     const existingPlayer = room.players.find((p) => p.userId === effectiveUserId);
+    const existingSpectator = room.spectators.find((s) => s.userId === effectiveUserId);
 
     if (existingPlayer) {
-      // Player is reconnecting to their existing session in this room
+      // Reconnect to active player slot
       return this.reconnectPlayer(cleanCode, socketId, effectiveUserId, playerName, avatar);
     }
 
-    if (room.status !== 'LOBBY') {
-      return { error: 'La partida ya está en curso y no perteneces a esta sala.' };
+    if (existingSpectator) {
+      existingSpectator.socketId = socketId;
+      if (playerName) existingSpectator.name = playerName;
+      return { room, isSpectator: true };
     }
 
-    // Add new guest player. STRICT: NEVER modify room.hostUserId!
+    // If game is already playing or players limit (6) reached, join as spectator!
+    if (room.status !== 'LOBBY' || room.players.length >= 6) {
+      const newSpectator = {
+        userId: effectiveUserId,
+        socketId: socketId,
+        name: playerName || `Espectador ${room.spectators.length + 1}`,
+        avatar: avatar || '👁️',
+      };
+      room.spectators.push(newSpectator);
+      room.gameLogs.push(`👁️ ${newSpectator.name} ingresó en Modo Espectador (Observador).`);
+      return { room, isSpectator: true };
+    }
+
+    // Add as active player
     const newGuestPlayer = {
       userId: effectiveUserId,
       socketId: socketId,
@@ -108,8 +127,8 @@ class RoomManager {
     };
 
     room.players.push(newGuestPlayer);
-    room.gameLogs.push(`👥 ${newGuestPlayer.name} se unió a la sala como invitado.`);
-    return { room };
+    room.gameLogs.push(`👥 ${newGuestPlayer.name} se unió a la sala como jugador.`);
+    return { room, isSpectator: false };
   }
 
   reconnectPlayer(roomCode, socketId, userId, playerName, avatar) {
@@ -119,13 +138,81 @@ class RoomManager {
     const player = room.players.find((p) => p.userId === userId);
     if (!player) return { error: 'Jugador no encontrado en la sala.' };
 
-    // Update socketId and reconnect status
     player.socketId = socketId;
     player.isOffline = false;
     if (playerName) player.name = playerName;
     if (avatar) player.avatar = avatar;
 
     room.gameLogs.push(`🔄 ${player.name} se reconectó a la sala.`);
+    return { room };
+  }
+
+  switchToSpectator(roomCode, socketId, userId) {
+    const room = this.getRoom(roomCode);
+    if (!room) return { error: 'Sala no encontrada.' };
+
+    const pIndex = room.players.findIndex((p) => p.userId === userId || p.socketId === socketId);
+    if (pIndex === -1) return { error: 'Jugador no encontrado en la mesa.' };
+
+    const player = room.players[pIndex];
+    room.players.splice(pIndex, 1);
+
+    if (!room.spectators) room.spectators = [];
+    room.spectators.push({
+      userId: player.userId,
+      socketId: socketId,
+      name: player.name,
+      avatar: player.avatar,
+    });
+
+    room.gameLogs.push(`👁️ ${player.name} pasó a Modo Espectador.`);
+
+    if (room.players.length === 0) {
+      this.rooms.delete(roomCode);
+      return { roomCode, room: null };
+    }
+
+    if (player.userId === room.hostUserId) {
+      room.hostUserId = room.players[0].userId;
+      room.gameLogs.push(`👑 ${room.players[0].name} es ahora el Anfitrión.`);
+    }
+
+    if (room.status === 'PLAYING') {
+      this.handlePlayerRemovedTurnReassignment(room, pIndex);
+    }
+
+    return { room };
+  }
+
+  switchToPlayer(roomCode, socketId, userId) {
+    const room = this.getRoom(roomCode);
+    if (!room) return { error: 'Sala no encontrada.' };
+
+    if (!room.spectators) room.spectators = [];
+    const sIndex = room.spectators.findIndex((s) => s.userId === userId || s.socketId === socketId);
+    if (sIndex === -1) return { error: 'No estás en modo espectador.' };
+
+    if (room.players.length >= 6) {
+      return { error: 'La mesa está llena (Máximo 6 jugadores).' };
+    }
+
+    const spec = room.spectators[sIndex];
+    room.spectators.splice(sIndex, 1);
+
+    const newPlayer = {
+      userId: spec.userId,
+      socketId: socketId,
+      name: spec.name,
+      avatar: spec.avatar || '🎲',
+      isOffline: false,
+      wins: 0,
+      board: CachoEngine.createEmptyBoard(),
+      boardDetails: CachoEngine.createEmptyBoardDetails(),
+      totalScore: 0,
+    };
+
+    room.players.push(newPlayer);
+    room.gameLogs.push(`🎮 ${newPlayer.name} ingresó como jugador activo a la mesa.`);
     return { room };
   }
 
@@ -137,6 +224,13 @@ class RoomManager {
         room.gameLogs.push(`🔌 ${player.name} se desconectó (Offline).`);
         return { roomCode: code, room };
       }
+      if (room.spectators) {
+        const specIndex = room.spectators.findIndex((s) => s.socketId === socketId);
+        if (specIndex !== -1) {
+          room.spectators.splice(specIndex, 1);
+          return { roomCode: code, room };
+        }
+      }
     }
     return null;
   }
@@ -145,28 +239,33 @@ class RoomManager {
     const room = this.getRoom(roomCode);
     if (!room) return null;
 
-    const pIndex = room.players.findIndex(
-      (p) => p.userId === userId || p.socketId === socketId
-    );
+    if (room.spectators) {
+      const specIndex = room.spectators.findIndex((s) => s.userId === userId || s.socketId === socketId);
+      if (specIndex !== -1) {
+        const spec = room.spectators[specIndex];
+        room.spectators.splice(specIndex, 1);
+        room.gameLogs.push(`🚪 ${spec.name} abandonó la sala.`);
+        return { roomCode, room };
+      }
+    }
 
+    const pIndex = room.players.findIndex((p) => p.userId === userId || p.socketId === socketId);
     if (pIndex === -1) return null;
 
     const leavingPlayer = room.players[pIndex];
     room.players.splice(pIndex, 1);
     room.gameLogs.push(`🚪 ${leavingPlayer.name} abandonó la sala.`);
 
-    if (room.players.length === 0) {
+    if (room.players.length === 0 && (!room.spectators || room.spectators.length === 0)) {
       this.rooms.delete(roomCode);
       return { roomCode, room: null };
     }
 
-    // Reassign host if leaving player was host
-    if (leavingPlayer.userId === room.hostUserId) {
+    if (leavingPlayer.userId === room.hostUserId && room.players.length > 0) {
       room.hostUserId = room.players[0].userId;
       room.gameLogs.push(`👑 ${room.players[0].name} es ahora el Anfitrión.`);
     }
 
-    // Handle turn reassignment if active game
     if (room.status === 'PLAYING') {
       this.handlePlayerRemovedTurnReassignment(room, pIndex);
     }
@@ -178,7 +277,6 @@ class RoomManager {
     const room = this.getRoom(roomCode);
     if (!room) return { error: 'Sala no encontrada.' };
 
-    // Check host privileges
     if (room.hostUserId !== requesterUserId) {
       return { error: 'Solo el Anfitrión puede expulsar jugadores.' };
     }
@@ -194,7 +292,6 @@ class RoomManager {
     room.players.splice(pIndex, 1);
     room.gameLogs.push(`👢 ${kickedPlayer.name} fue expulsado por el Anfitrión.`);
 
-    // Handle turn reassignment if active game
     if (room.status === 'PLAYING') {
       this.handlePlayerRemovedTurnReassignment(room, pIndex);
     }
@@ -205,12 +302,11 @@ class RoomManager {
   handlePlayerRemovedTurnReassignment(room, removedIndex) {
     if (room.players.length < 2) {
       room.status = 'LOBBY';
-      room.gameLogs.push('Partida pausada: Se necesitan al menos 2 jugadores.');
+      room.gameLogs.push('Partida pausada: Se necesitan al menos 2 jugadores activos.');
       return;
     }
 
     if (room.currentTurnIndex === removedIndex) {
-      // The removed player had the active turn -> advance turn automatically!
       room.currentTurnIndex = room.currentTurnIndex % room.players.length;
       this.resetTurnState(room);
       const nextPlayer = room.players[room.currentTurnIndex];
@@ -229,7 +325,7 @@ class RoomManager {
     }
 
     if (room.players.length < 2) {
-      return { error: 'Se necesitan al menos 2 jugadores.' };
+      return { error: 'Se necesitan al menos 2 jugadores activos en la mesa.' };
     }
 
     room.status = 'PLAYING';
@@ -269,14 +365,13 @@ class RoomManager {
     if (!room || room.status !== 'PLAYING') return { error: 'Partida no activa.' };
 
     const currentPlayer = room.players[room.currentTurnIndex];
-    if (currentPlayer.socketId !== socketId) return { error: 'No es tu turno.' };
+    if (!currentPlayer || currentPlayer.socketId !== socketId) return { error: 'No es tu turno.' };
     if (currentPlayer.isOffline) return { error: 'Estás desconectado.' };
 
     const ts = room.turnState;
     if (ts.cantoResolution?.active) return { error: 'Resolviendo Canto en la mesa...' };
     if (ts.rollsLeft <= 0) return { error: 'No te quedan tiros en este turno.' };
 
-    // Set Canto if declared for this throw
     if (calledCantoNumber !== null) {
       if (typeof calledCantoNumber === 'object' && calledCantoNumber.predictedSum !== undefined) {
         const { predictedSum, targetCategory } = calledCantoNumber;
@@ -311,7 +406,6 @@ class RoomManager {
       }
     }
 
-    // Roll unkept dice and capture newly rolled values
     const newDice = [...ts.dice];
     const unkeptRolledDice = [];
     let countKept = 0;
@@ -336,7 +430,6 @@ class RoomManager {
     let logText = `${currentPlayer.name} lanzó los dados [${newDice.join(', ')}]`;
     if (throwIsReal) logText += ' (¡Tiro limpio / 5 dados!)';
 
-    // Evaluate Canto if active
     if (ts.activeCantoData || ts.activeCanto !== null) {
       let cantoEval;
       let targetCategory;
@@ -422,7 +515,6 @@ class RoomManager {
             this.nextTurn(activeRoom);
           }
         } else {
-          // Failure Handling: Automatically cross targetCategory (or grande if targetCategory was full)
           let categoryToCross;
           if (curPlayer.board[targetCategory] === null) {
             categoryToCross = targetCategory;
@@ -474,7 +566,7 @@ class RoomManager {
     if (!room || room.status !== 'PLAYING') return { error: 'Partida no activa.' };
 
     const currentPlayer = room.players[room.currentTurnIndex];
-    if (currentPlayer.socketId !== socketId) return { error: 'No es tu turno.' };
+    if (!currentPlayer || currentPlayer.socketId !== socketId) return { error: 'No es tu turno.' };
 
     const ts = room.turnState;
     if (!ts.hasRolledThisTurn) return { error: 'Debes lanzar primero.' };
@@ -490,7 +582,7 @@ class RoomManager {
     if (!room || room.status !== 'PLAYING') return { error: 'Partida no activa.' };
 
     const currentPlayer = room.players[room.currentTurnIndex];
-    if (currentPlayer.socketId !== socketId) return { error: 'No es tu turno.' };
+    if (!currentPlayer || currentPlayer.socketId !== socketId) return { error: 'No es tu turno.' };
 
     const ts = room.turnState;
     if (!ts.hasRolledThisTurn) return { error: 'Debes lanzar los dados antes de anotar.' };
@@ -540,7 +632,7 @@ class RoomManager {
     if (!room || room.status !== 'PLAYING') return { error: 'Partida no activa.' };
 
     const currentPlayer = room.players[room.currentTurnIndex];
-    if (currentPlayer.socketId !== socketId) return { error: 'No es tu turno.' };
+    if (!currentPlayer || currentPlayer.socketId !== socketId) return { error: 'No es tu turno.' };
 
     const ts = room.turnState;
     if (!ts.hasRolledThisTurn) return { error: 'Debes lanzar los dados antes de tachar.' };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LogOut, Dices, ScrollText, BarChart3, DoorOpen, LayoutGrid } from 'lucide-react';
+import { LogOut, Dices, ScrollText, BarChart3, DoorOpen, LayoutGrid, Eye, UserPlus, Mic } from 'lucide-react';
 import DiceCup from './DiceCup';
 import ActionPanel from './ActionPanel';
 import VictoryModal from './VictoryModal';
@@ -10,9 +10,12 @@ import PlayerAvatar from './PlayerAvatar';
 import GameLogsModal from './GameLogsModal';
 import OpponentsOverviewModal from './OpponentsOverviewModal';
 import MyBoardModal from './MyBoardModal';
+import VoiceChatControls from './VoiceChatControls';
+import useVoiceChat from '../hooks/useVoiceChat';
 
 export default function GameTable({
   room,
+  socket,
   currentSocketId,
   currentUserId,
   onRollDice,
@@ -35,18 +38,29 @@ export default function GameTable({
   const [showCantoResolutionOverlay, setShowCantoResolutionOverlay] = useState(false);
   const [pendingCantoData, setPendingCantoData] = useState(null);
 
-  // Unified FIFO Avatar Feed State (Chats & Emotes stream together, newest event replaces immediately!)
+  // WebRTC P2P Voice Chat Hook
+  const {
+    isAudioConnected,
+    isMuted,
+    speakingPlayers,
+    connectAudio,
+    toggleMute,
+    disconnectAudio,
+  } = useVoiceChat(socket, room?.code, currentUserId);
+
+  // Unified FIFO Avatar Feed State
   const [avatarFeedState, setAvatarFeedState] = useState({});
   const feedTimersRef = useRef({});
 
-  const { players = [], currentTurnIndex, turnState = {}, status, winner, winReason, hostUserId } = room;
+  const { players = [], spectators = [], currentTurnIndex, turnState = {}, status, winner, winReason, hostUserId } = room;
 
   const currentPlayer = players[currentTurnIndex] || {};
+  const isSpectator = !players.some((p) => (p.userId ? p.userId === currentUserId : p.socketId === currentSocketId));
   const localPlayer = players.find((p) => (p.userId ? p.userId === currentUserId : p.socketId === currentSocketId)) || currentPlayer;
-  const isMyTurn = currentPlayer.userId ? currentPlayer.userId === currentUserId : currentPlayer.socketId === currentSocketId;
+  const isMyTurn = !isSpectator && (currentPlayer.userId ? currentPlayer.userId === currentUserId : currentPlayer.socketId === currentSocketId);
   const isHost = Boolean(hostUserId && currentUserId && hostUserId === currentUserId);
 
-  // All players list (for Left HUD: local player + opponents)
+  // Combined lists for display
   const allPlayers = players;
   const opponents = players.filter((p) => (p.userId ? p.userId !== currentUserId : p.socketId !== currentSocketId));
 
@@ -63,7 +77,7 @@ export default function GameTable({
     }
   }, [turnState?.cantoResolution?.active]);
 
-  // Helper to push new item to user's avatar feed (immediately replaces previous event!)
+  // Helper to push new item to user's avatar feed
   const pushToAvatarFeed = (userId, type, value) => {
     if (!userId) return;
 
@@ -85,7 +99,7 @@ export default function GameTable({
     }, 4000);
   };
 
-  // Sync incoming chat messages into unified FIFO feed
+  // Sync chat messages into unified FIFO feed
   useEffect(() => {
     if (chatMessages && chatMessages.length > 0) {
       const latest = chatMessages[chatMessages.length - 1];
@@ -95,7 +109,7 @@ export default function GameTable({
     }
   }, [chatMessages]);
 
-  // Sync incoming active emotes into unified FIFO feed
+  // Sync active emotes into unified FIFO feed
   useEffect(() => {
     if (activeEmotes) {
       Object.entries(activeEmotes).forEach(([uId, emote]) => {
@@ -117,7 +131,7 @@ export default function GameTable({
   }, [isMyTurn, turnState.rollsLeft, turnState.cantoFailed]);
 
   const handleRollClick = (cantoDataOverride = null) => {
-    if (!isMyTurn || turnState.rollsLeft <= 0) return;
+    if (isSpectator || !isMyTurn || turnState.rollsLeft <= 0) return;
     const cantoToUse = cantoDataOverride || pendingCantoData;
 
     setIsRolling(true);
@@ -139,6 +153,18 @@ export default function GameTable({
       pushToAvatarFeed(currentUserId, 'emote', emote);
     }
     onSendEmote(emote);
+  };
+
+  const handleSwitchToSpectator = () => {
+    if (socket) {
+      socket.emit('switch_to_spectator', { roomCode: room.code, userId: currentUserId });
+    }
+  };
+
+  const handleSwitchToPlayer = () => {
+    if (socket) {
+      socket.emit('switch_to_player', { roomCode: room.code, userId: currentUserId });
+    }
   };
 
   const calculateClientScoringOptions = (dice, isReal, board) => {
@@ -177,6 +203,14 @@ export default function GameTable({
 
   return (
     <div className="bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-700 via-emerald-950 to-zinc-950 relative w-full h-[100dvh] overflow-hidden select-none font-outfit">
+      {/* Spectator Mode Top Banner Indicator */}
+      {isSpectator && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-purple-950/90 border border-purple-400 text-purple-200 px-4 py-1 rounded-full text-xs font-black tracking-wider flex items-center gap-2 shadow-xl z-50 animate-pulse">
+          <Eye className="w-4 h-4 text-purple-300 stroke-[2.5]" />
+          <span>ESTÁS OBSERVANDO EN MODO ESPECTADOR</span>
+        </div>
+      )}
+
       {/* 1. HUD Left Dock (Unclipped Avatars Floating Over Everything - z-[999]) */}
       <div className="fixed left-3 sm:left-5 top-16 sm:top-20 flex flex-col gap-4 sm:gap-5 z-[999] overflow-visible pointer-events-auto">
         {allPlayers.map((p) => {
@@ -184,6 +218,7 @@ export default function GameTable({
           const pIsHost = Boolean(hostUserId && p.userId && hostUserId === p.userId);
           const isMe = p.userId ? p.userId === currentUserId : p.socketId === currentSocketId;
           const feedItem = avatarFeedState[p.userId];
+          const isSpeaking = Boolean(speakingPlayers[p.userId]);
 
           return (
             <PlayerAvatar
@@ -192,30 +227,73 @@ export default function GameTable({
               isTurn={pIsTurn}
               isHost={pIsHost}
               isMe={isMe}
+              isSpeaking={isSpeaking}
               activeFeedItem={feedItem}
               size="sm"
               onClick={() => isMe ? setIsMyBoardModalOpen(true) : setIsOpponentsOverviewOpen(true)}
             />
           );
         })}
+
+        {/* Spectators Counter Pill */}
+        {spectators && spectators.length > 0 && (
+          <div className="px-2.5 py-1 rounded-xl bg-purple-950/80 border border-purple-400/60 text-purple-300 text-[10px] font-bold flex items-center justify-center gap-1 shadow-lg">
+            <Eye className="w-3 h-3 text-purple-400" />
+            <span>Espectadores ({spectators.length})</span>
+          </div>
+        )}
       </div>
 
-      {/* 2. HUD Top-Right Controls Bar (4 Floating Buttons: Mi Tablero, Historial, Espiar, Salir) */}
+      {/* 2. HUD Top-Right Controls Bar (Voice Call, Spectator Switch, Mi Tablero, Historial, Espiar, Salir) */}
       <div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex items-center gap-2 sm:gap-3 z-50">
+        {/* WebRTC Live Audio Voice Controls Pill */}
+        <VoiceChatControls
+          isAudioConnected={isAudioConnected}
+          isMuted={isMuted}
+          onConnectAudio={connectAudio}
+          onToggleMute={toggleMute}
+          onDisconnectAudio={disconnectAudio}
+        />
+
+        {/* Mode Toggle Button: Spectator -> Join Player OR Active Player -> Spectator */}
+        {isSpectator ? (
+          <button
+            type="button"
+            onClick={handleSwitchToPlayer}
+            className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer border border-emerald-300"
+            title="Unirse como jugador activo a la mesa"
+          >
+            <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+            <span className="hidden md:inline font-cinzel">Unirse a la Mesa</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSwitchToSpectator}
+            className="p-2.5 sm:p-3 rounded-2xl bg-purple-950/90 hover:bg-purple-900 border border-purple-400/80 text-purple-200 font-bold text-xs transition-all shadow hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            title="Pasar a Modo Espectador (Observar)"
+          >
+            <Eye className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+            <span className="hidden lg:inline font-cinzel">Espectar</span>
+          </button>
+        )}
+
         {/* Mi Tablero Floating Button (📋) */}
-        <button
-          type="button"
-          onClick={() => setIsMyBoardModalOpen(true)}
-          className={`p-2.5 sm:p-3 rounded-2xl border transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1.5 font-black text-xs cursor-pointer ${
-            isMyTurn && turnState.rollsLeft === 0
-              ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 text-zinc-950 border-amber-300 animate-bounce-short shadow-gold-glow'
-              : 'bg-zinc-900/90 border-zinc-700/80 hover:border-amber-400 text-amber-300'
-          }`}
-          title="Ver / Desplegar Mi Tablero Michi"
-        >
-          <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
-          <span className="hidden md:inline font-cinzel">Mi Tablero</span>
-        </button>
+        {!isSpectator && (
+          <button
+            type="button"
+            onClick={() => setIsMyBoardModalOpen(true)}
+            className={`p-2.5 sm:p-3 rounded-2xl border transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1.5 font-black text-xs cursor-pointer ${
+              isMyTurn && turnState.rollsLeft === 0
+                ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 text-zinc-950 border-amber-300 animate-bounce-short shadow-gold-glow'
+                : 'bg-zinc-900/90 border-zinc-700/80 hover:border-amber-400 text-amber-300'
+            }`}
+            title="Ver / Desplegar Mi Tablero Michi"
+          >
+            <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+            <span className="hidden md:inline font-cinzel">Mi Tablero</span>
+          </button>
+        )}
 
         {/* Historial de Jugadas Button (📜) */}
         <button
@@ -256,7 +334,7 @@ export default function GameTable({
         <div className="w-full flex justify-center transform scale-100 sm:scale-105 md:scale-110 transition-transform">
           <DiceCup
             turnState={turnState}
-            isMyTurn={isMyTurn}
+            isMyTurn={!isSpectator && isMyTurn}
             onToggleKeep={onToggleKeepDie}
             isRolling={isRolling}
             activeCanto={turnState.activeCanto}
@@ -268,7 +346,9 @@ export default function GameTable({
 
       {/* 4. Single Floating Status Pill */}
       <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-md border border-amber-400/80 text-amber-300 px-6 py-2 rounded-full text-xs sm:text-sm font-bold shadow-xl z-30 pointer-events-none whitespace-nowrap flex items-center gap-2">
-        {isMyTurn ? (
+        {isSpectator ? (
+          <span>👁️ Modo Espectador: Observando a {currentPlayer.name}...</span>
+        ) : isMyTurn ? (
           turnState.hasRolledThisTurn ? (
             turnState.rollsLeft > 0 ? (
               <span>👇 Toca dados para Guardar o Arrastra/Agita para Lanzar</span>
@@ -284,15 +364,17 @@ export default function GameTable({
       </div>
 
       {/* 5. HUD Bottom Action Controls */}
-      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex justify-center gap-3 sm:gap-4 w-[90%] max-w-md z-50">
-        <ActionPanel
-          turnState={turnState}
-          isMyTurn={isMyTurn}
-          onOpenCantoModal={() => setIsCantoModalOpen(true)}
-          isRolling={isRolling}
-          player={localPlayer}
-        />
-      </div>
+      {!isSpectator && (
+        <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex justify-center gap-3 sm:gap-4 w-[90%] max-w-md z-50">
+          <ActionPanel
+            turnState={turnState}
+            isMyTurn={isMyTurn}
+            onOpenCantoModal={() => setIsCantoModalOpen(true)}
+            isRolling={isRolling}
+            player={localPlayer}
+          />
+        </div>
+      )}
 
       {/* Sleek Floating Top HUD Canto Announcement */}
       <HudAnnouncement
@@ -310,16 +392,18 @@ export default function GameTable({
       />
 
       {/* Local Player "Mi Tablero" Desplegable Modal */}
-      <MyBoardModal
-        isOpen={isMyBoardModalOpen}
-        onClose={() => setIsMyBoardModalOpen(false)}
-        player={localPlayer}
-        isCurrentTurnPlayer={isMyTurn}
-        turnState={turnState}
-        scoringOptions={scoringOptions}
-        onScore={onScoreCategory}
-        onCross={onCrossCategory}
-      />
+      {!isSpectator && (
+        <MyBoardModal
+          isOpen={isMyBoardModalOpen}
+          onClose={() => setIsMyBoardModalOpen(false)}
+          player={localPlayer}
+          isCurrentTurnPlayer={isMyTurn}
+          turnState={turnState}
+          scoringOptions={scoringOptions}
+          onScore={onScoreCategory}
+          onCross={onCrossCategory}
+        />
+      )}
 
       {/* Opponents Overview Modal (Espiar Rivales - 📊) */}
       <OpponentsOverviewModal
@@ -339,14 +423,16 @@ export default function GameTable({
       />
 
       {/* Modals */}
-      <CantoModal
-        isOpen={isCantoModalOpen}
-        onClose={() => setIsCantoModalOpen(false)}
-        onConfirmCanto={handleConfirmCantoChoice}
-        player={localPlayer}
-        keptDice={turnState.keptDice}
-        dice={turnState.dice}
-      />
+      {!isSpectator && (
+        <CantoModal
+          isOpen={isCantoModalOpen}
+          onClose={() => setIsCantoModalOpen(false)}
+          onConfirmCanto={handleConfirmCantoChoice}
+          player={localPlayer}
+          keptDice={turnState.keptDice}
+          dice={turnState.dice}
+        />
+      )}
 
       <VictoryModal
         isOpen={status === 'GAME_OVER'}
