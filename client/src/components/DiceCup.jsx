@@ -46,9 +46,36 @@ export default function DiceCup({
   const [isDragging, setIsDragging] = useState(false);
   const [cupPos, setCupPos] = useState({ x: 0, y: 0 });
 
+  // Track indices that were ALREADY docked in previous rolls
+  const [dockedIndices, setDockedIndices] = useState([]);
+
   const lastMousePos = useRef({ x: 0, y: 0, time: Date.now() });
 
   const canRollNow = isMyTurn && rollsLeft > 0 && !cantoFailed && !isRolling && !cantoResolution?.active;
+
+  // When a roll completes, update dockedIndices to lock previously kept dice in top dock
+  useEffect(() => {
+    if (!hasRolledThisTurn) {
+      setDockedIndices([]);
+    } else {
+      // Lock all dice that were kept prior to this roll
+      setDockedIndices((prev) => {
+        const next = [...prev];
+        keptDice.forEach((isKept, idx) => {
+          if (isKept && !next.includes(idx)) {
+            // Only dock if it was kept before this roll arrived
+          }
+        });
+        return next;
+      });
+    }
+  }, [hasRolledThisTurn, rollsLeft]);
+
+  // When user starts shaking/dragging for the next roll, move ALL currently selected kept dice to the docked top area!
+  const handleStartShake = () => {
+    const newlyKept = dice.map((_, idx) => idx).filter((idx) => keptDice[idx]);
+    setDockedIndices(newlyKept);
+  };
 
   // Mobile Device Motion API (Shake to Roll Mobile Acceleration Detection)
   useEffect(() => {
@@ -76,6 +103,7 @@ export default function DiceCup({
           const speed = ((Math.abs(x - lastX) + Math.abs(y - lastY) + Math.abs(z - lastZ)) / diffTime) * 1000;
 
           if (speed > 8) {
+            handleStartShake();
             setIsShakingMotion(true);
             if (navigator.vibrate) navigator.vibrate([40, 20, 40]);
 
@@ -112,12 +140,13 @@ export default function DiceCup({
       }
       clearTimeout(shakeTimeout);
     };
-  }, [canRollNow, onTriggerRoll]);
+  }, [canRollNow, onTriggerRoll, keptDice]);
 
   // Global PC Mouse & Touch Drag Handlers (1-Click Instant Release)
   const startDragGesture = (clientX, clientY) => {
     if (!canRollNow) return;
 
+    handleStartShake();
     setIsDragging(true);
     lastMousePos.current = { x: clientX, y: clientY, time: Date.now() };
 
@@ -167,10 +196,16 @@ export default function DiceCup({
     window.addEventListener('touchend', handleGlobalEnd);
   };
 
-  // Dice state definitions: Kept (Saved in Top Dock) vs Active (On Table)
+  // Dice state definitions:
+  // - Top Dock: Shows dice indices that were locked into Zona Segura
+  // - Table Tray: Shows active dice indices for the current roll
   const isDiceInCup = isRolling || isShakingMotion || isDragging || !hasRolledThisTurn;
-  const savedDiceIndices = dice.map((_, idx) => idx).filter((idx) => keptDice[idx]);
-  const activeDiceIndices = dice.map((_, idx) => idx).filter((idx) => !keptDice[idx]);
+  
+  // Docked indices (in top Zona Segura)
+  const currentDockedIndices = dice.map((_, idx) => idx).filter((idx) => dockedIndices.includes(idx) && keptDice[idx]);
+  
+  // Active table indices (on the felt table tray - NOT yet docked!)
+  const activeTableIndices = dice.map((_, idx) => idx).filter((idx) => !dockedIndices.includes(idx));
 
   const activeCantoLabel = pendingCantoData
     ? `Canto Elegido: ${pendingCantoData.predictedSum} (${pendingCantoData.targetCategory.toUpperCase()})`
@@ -180,14 +215,14 @@ export default function DiceCup({
 
   return (
     <div className="flex flex-col items-center justify-center p-1 relative select-none w-full min-h-[280px]">
-      {/* 1. Top Saved Dice Dock (Clean Casino Pill) */}
-      {hasRolledThisTurn && savedDiceIndices.length > 0 && (
+      {/* 1. Top Zona Segura (DADOS GUARDADOS DE TIROS ANTERIORES) */}
+      {hasRolledThisTurn && currentDockedIndices.length > 0 && (
         <div className="mb-3 px-4 py-2 rounded-2xl bg-zinc-950/90 border border-amber-400/90 shadow-gold-glow backdrop-blur-md flex items-center gap-3 z-30 animate-fade-in">
           <div className="flex items-center gap-1 text-[11px] uppercase font-black tracking-widest text-amber-300">
-            <Lock className="w-3.5 h-3.5 text-amber-400" /> Guardados ({savedDiceIndices.length})
+            <Lock className="w-3.5 h-3.5 text-amber-400" /> Zona Segura ({currentDockedIndices.length})
           </div>
           <div className="flex items-center gap-2">
-            {savedDiceIndices.map((idx) => {
+            {currentDockedIndices.map((idx) => {
               const val = dice[idx];
               const canToggle = isMyTurn && hasRolledThisTurn && rollsLeft > 0 && !cantoFailed;
 
@@ -296,19 +331,20 @@ export default function DiceCup({
         </div>
       )}
 
-      {/* Active Dice Table Tray (PERFECT 1:1 SQUARE DICE GEOMETRY!) */}
-      {!isDiceInCup && hasRolledThisTurn && activeDiceIndices.length > 0 ? (
+      {/* 2. Active Dice Table Tray (DADOS DEL TIRO ACTUAL - SE QUEDAN EN SU SITIO AL MARCARSE!) */}
+      {!isDiceInCup && hasRolledThisTurn && activeTableIndices.length > 0 ? (
         <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-4 sm:p-5 border border-emerald-500/20 shadow-2xl z-10 animate-fade-in">
           <div className="text-center mb-3">
             <span className="text-[11px] uppercase tracking-widest text-emerald-300 font-bold font-mono">
-              🔒 Toca un dado para guardarlo
+              🔒 Toca para guardar (al agitar van a la zona segura)
             </span>
           </div>
 
-          {/* Active Unkept Dice Grid (Square 1:1 Aspect Ratio, Zero Distortion!) */}
+          {/* Active Table Dice (Exact count for current roll, die stays in place when marked!) */}
           <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4.5">
-            {activeDiceIndices.map((idx) => {
+            {activeTableIndices.map((idx) => {
               const val = dice[idx];
+              const isKept = keptDice[idx];
               const canToggle = isMyTurn && hasRolledThisTurn && rollsLeft > 0 && !cantoFailed;
 
               return (
@@ -316,23 +352,37 @@ export default function DiceCup({
                   key={idx}
                   onClick={() => canToggle && onToggleKeep(idx)}
                   className={`relative group flex flex-col items-center transition-all transform shrink-0 ${
-                    canToggle ? 'cursor-pointer hover:scale-110 active:scale-95' : 'cursor-default'
+                    canToggle ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'
                   }`}
-                  title="Toca para guardar este dado"
+                  title={isKept ? 'Dado Guardado (se moverá arriba al agitar)' : 'Toca para guardar este dado'}
                 >
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 aspect-square shrink-0 rounded-2xl p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform bg-gradient-to-br from-amber-50 via-zinc-100 to-zinc-300 text-zinc-900 border-2 border-zinc-300 shadow-2d-die hover:border-amber-400/80">
+                  <div
+                    className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 aspect-square shrink-0 rounded-2xl p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform ${
+                      isKept
+                        ? 'bg-gradient-to-br from-amber-100 via-amber-200 to-amber-400 text-zinc-950 border-2 sm:border-3 border-amber-400 shadow-2d-die-kept scale-105 ring-2 sm:ring-4 ring-amber-400/60'
+                        : 'bg-gradient-to-br from-amber-50 via-zinc-100 to-zinc-300 text-zinc-900 border-2 border-zinc-300 shadow-2d-die hover:border-amber-400/80'
+                    }`}
+                  >
                     {PIP_POSITIONS[val]?.map((posClass, pIdx) => (
                       <span
                         key={pIdx}
-                        className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 aspect-square rounded-full shrink-0 ${posClass} bg-zinc-900 die-pip-sunken`}
+                        className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 aspect-square rounded-full shrink-0 ${posClass} ${
+                          isKept ? 'bg-amber-950 die-pip-sunken-kept' : 'bg-zinc-900 die-pip-sunken'
+                        }`}
                       />
                     ))}
                   </div>
 
                   <div className="mt-1.5 flex items-center justify-center">
-                    <span className="px-2 py-0.5 rounded bg-zinc-900/80 text-zinc-400 text-[9px] sm:text-[10px] font-medium flex items-center gap-0.5 border border-zinc-800 group-hover:text-amber-300 group-hover:border-amber-500/50">
-                      <Lock className="w-2.5 h-2.5" /> Guardar
-                    </span>
+                    {isKept ? (
+                      <span className="px-2 py-0.5 rounded bg-amber-500/30 text-amber-300 border border-amber-400/60 text-[9px] sm:text-[10px] font-black flex items-center gap-0.5 shadow-sm">
+                        <Lock className="w-2.5 h-2.5 text-amber-400" /> Guardado
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded bg-zinc-900/80 text-zinc-400 text-[9px] sm:text-[10px] font-medium flex items-center gap-0.5 border border-zinc-800 group-hover:text-amber-300 group-hover:border-amber-500/50">
+                        <Unlock className="w-2.5 h-2.5" /> Libre
+                      </span>
+                    )}
                   </div>
                 </div>
               );
