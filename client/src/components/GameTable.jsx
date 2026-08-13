@@ -63,7 +63,7 @@ export default function GameTable({
 
   // Combined lists for display
   const allPlayers = players;
-  const opponents = players.filter((p) => (p.userId ? p.userId !== currentUserId : p.socketId !== currentSocketId));
+  const opponents = players.filter((p) => (p.userId ? p.userId !== currentUserId : p.socketId === currentSocketId));
 
   useEffect(() => {
     if (turnState?.cantoResolution?.active) {
@@ -230,14 +230,14 @@ export default function GameTable({
     <div className="bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-700 via-emerald-950 to-zinc-950 relative w-full h-[100dvh] overflow-hidden select-none font-outfit">
       {/* Spectator Mode Top Banner Indicator */}
       {isSpectator && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-purple-950/90 border border-purple-400 text-purple-200 px-4 py-1 rounded-full text-xs font-black tracking-wider flex items-center gap-2 shadow-xl z-50 animate-pulse">
-          <Eye className="w-4 h-4 text-purple-300 stroke-[2.5]" />
-          <span>ESTÁS OBSERVANDO EN MODO ESPECTADOR</span>
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-purple-950/95 border border-purple-400 text-purple-200 px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-black tracking-wider flex items-center gap-1.5 shadow-xl z-40 animate-pulse whitespace-nowrap">
+          <Eye className="w-3.5 h-3.5 text-purple-300 stroke-[2.5]" />
+          <span>MODO ESPECTADOR</span>
         </div>
       )}
 
-      {/* 1. HUD Left Dock (Unclipped Avatars Floating Over Everything - z-[999]) */}
-      <div className="fixed left-3 sm:left-5 top-16 sm:top-20 flex flex-col gap-4 sm:gap-5 z-[999] overflow-visible pointer-events-auto">
+      {/* 1. HUD Left Dock (Avatars List - Scaled & Shifted to Avoid Cup Overlap!) */}
+      <div className="fixed left-2 sm:left-4 top-12 sm:top-16 flex flex-col gap-3 sm:gap-4 z-[999] overflow-visible pointer-events-auto scale-90 sm:scale-100 origin-top-left">
         {allPlayers.map((p) => {
           const pIsTurn = currentPlayer.userId ? currentPlayer.userId === p.userId : currentPlayer.socketId === p.socketId;
           const pIsHost = Boolean(hostUserId && p.userId && hostUserId === p.userId);
@@ -262,31 +262,31 @@ export default function GameTable({
 
         {/* Spectators Counter Pill */}
         {spectators && spectators.length > 0 && (
-          <div className="px-2.5 py-1 rounded-xl bg-purple-950/80 border border-purple-400/60 text-purple-300 text-[10px] font-bold flex items-center justify-center gap-1 shadow-lg">
-            <Eye className="w-3 h-3 text-purple-400" />
-            <span>Espectadores ({spectators.length})</span>
+          <div className="px-2 py-0.5 rounded-xl bg-purple-950/80 border border-purple-400/60 text-purple-300 text-[9px] font-bold flex items-center justify-center gap-1 shadow-lg max-w-[85px] truncate">
+            <Eye className="w-3 h-3 text-purple-400 shrink-0" />
+            <span className="truncate">Espectadores ({spectators.length})</span>
           </div>
         )}
       </div>
 
-      {/* 2. HUD Top-Right Controls Bar (Share Code, Voice Call, Spectator Switch, Mi Tablero, Historial, Espiar, Salir) */}
-      <div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex items-center gap-2 sm:gap-3 z-50">
+      {/* 2. HUD Top Controls Bar (Non-Overlapping Flex Bar) */}
+      <div className="absolute top-2 sm:top-4 right-2 sm:right-4 flex items-center gap-1.5 sm:gap-2.5 z-50 max-w-[calc(100vw-110px)] overflow-x-auto no-scrollbar">
         {/* Copy Room Code & WhatsApp Share Pill (📋) */}
         <button
           type="button"
           onClick={handleCopyRoomInvite}
-          className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-zinc-950 font-extrabold text-xs transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer border border-yellow-200"
+          className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-zinc-950 font-black text-xs transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 cursor-pointer border border-yellow-200 shrink-0"
           title="Copiar Código de Sala y Link para WhatsApp"
         >
           {copiedInvite ? (
             <>
-              <Check className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-950 stroke-[3]" />
-              <span className="font-black text-emerald-950">¡Copiado!</span>
+              <Check className="w-4 h-4 text-emerald-950 stroke-[3]" />
+              <span className="font-black text-emerald-950 text-[10px] sm:text-xs">¡Copiado!</span>
             </>
           ) : (
             <>
-              <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-950 stroke-[2.5]" />
-              <span className="font-cinzel text-xs tracking-wider">Sala: {room.code}</span>
+              <Share2 className="w-4 h-4 text-zinc-950 stroke-[2.5]" />
+              <span className="font-cinzel text-[10px] sm:text-xs tracking-wider">Sala: {room.code}</span>
             </>
           )}
         </button>
@@ -305,21 +305,21 @@ export default function GameTable({
           <button
             type="button"
             onClick={handleSwitchToPlayer}
-            className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer border border-emerald-300"
+            className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 cursor-pointer border border-emerald-300 shrink-0"
             title="Unirse como jugador activo a la mesa"
           >
-            <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
-            <span className="hidden md:inline font-cinzel">Unirse a la Mesa</span>
+            <UserPlus className="w-4 h-4 stroke-[2.5]" />
+            <span className="hidden md:inline font-cinzel text-[10px] sm:text-xs">Unirse</span>
           </button>
         ) : (
           <button
             type="button"
             onClick={handleSwitchToSpectator}
-            className="p-2.5 sm:p-3 rounded-2xl bg-purple-950/90 hover:bg-purple-900 border border-purple-400/80 text-purple-200 font-bold text-xs transition-all shadow hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-purple-950/90 hover:bg-purple-900 border border-purple-400/80 text-purple-200 font-bold text-xs transition-all shadow hover:scale-105 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
             title="Pasar a Modo Espectador (Observar)"
           >
-            <Eye className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
-            <span className="hidden lg:inline font-cinzel">Espectar</span>
+            <Eye className="w-4 h-4 stroke-[2.5]" />
+            <span className="hidden lg:inline font-cinzel text-[10px] sm:text-xs">Espectar</span>
           </button>
         )}
 
@@ -328,15 +328,15 @@ export default function GameTable({
           <button
             type="button"
             onClick={() => setIsMyBoardModalOpen(true)}
-            className={`p-2.5 sm:p-3 rounded-2xl border transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1.5 font-black text-xs cursor-pointer ${
+            className={`p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 font-black text-xs cursor-pointer shrink-0 ${
               isMyTurn && turnState.rollsLeft === 0
                 ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 text-zinc-950 border-amber-300 animate-bounce-short shadow-gold-glow'
                 : 'bg-zinc-900/90 border-zinc-700/80 hover:border-amber-400 text-amber-300'
             }`}
             title="Ver / Desplegar Mi Tablero Michi"
           >
-            <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
-            <span className="hidden md:inline font-cinzel">Mi Tablero</span>
+            <LayoutGrid className="w-4 h-4 stroke-[2.5]" />
+            <span className="hidden md:inline font-cinzel text-[10px] sm:text-xs">Mi Tablero</span>
           </button>
         )}
 
@@ -344,37 +344,35 @@ export default function GameTable({
         <button
           type="button"
           onClick={() => setIsLogsModalOpen(true)}
-          className="p-2.5 sm:p-3 rounded-2xl bg-zinc-900/90 border border-zinc-700/80 hover:border-amber-400 text-amber-400 transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1.5 font-bold text-xs cursor-pointer"
+          className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-zinc-900/90 border border-zinc-700/80 hover:border-amber-400 text-amber-400 transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 font-bold text-xs cursor-pointer shrink-0"
           title="Historial de Jugadas"
         >
-          <ScrollText className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
-          <span className="hidden md:inline font-cinzel">Historial</span>
+          <ScrollText className="w-4 h-4 stroke-[2.5]" />
         </button>
 
         {/* Espiar Rivales Button (📊) */}
         <button
           type="button"
           onClick={() => setIsOpponentsOverviewOpen(true)}
-          className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-r from-amber-950 via-zinc-900 to-amber-950 border border-amber-400 text-amber-300 transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1.5 font-extrabold text-xs cursor-pointer"
+          className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-950 via-zinc-900 to-amber-950 border border-amber-400 text-amber-300 transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1 font-extrabold text-xs cursor-pointer shrink-0"
           title="Espiar Rivales (Tableros)"
         >
-          <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5] text-amber-400" />
-          <span className="hidden md:inline font-cinzel">Espiar Rivales</span>
+          <BarChart3 className="w-4 h-4 stroke-[2.5] text-amber-400" />
         </button>
 
         {/* Salir de la Sala Button (🚪) */}
         <button
           type="button"
           onClick={onLeaveRoom}
-          className="p-2.5 sm:p-3 rounded-2xl bg-rose-950/90 hover:bg-rose-950 border border-rose-600/80 text-rose-200 transition-all shadow hover:scale-105 active:scale-95 flex items-center gap-1.5 font-bold text-xs cursor-pointer"
+          className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-rose-950/90 hover:bg-rose-950 border border-rose-600/80 text-rose-200 transition-all shadow hover:scale-105 active:scale-95 flex items-center gap-1 font-bold text-xs cursor-pointer shrink-0"
           title="Salir de la Sala"
         >
-          <DoorOpen className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+          <DoorOpen className="w-4 h-4 stroke-[2.5]" />
         </button>
       </div>
 
       {/* 3. Center Arena Stage (Clean Emerald Felt Table for Cacho Cup & Dice) */}
-      <main className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center gap-4 sm:gap-6 w-full max-w-md sm:max-w-lg md:max-w-xl px-3 z-10">
+      <main className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center gap-3 sm:gap-6 w-full max-w-xs sm:max-w-lg md:max-w-xl px-2 z-10">
         {/* Interactive Physical Dice Tray & Mouse Drag / Device Motion Cacho Cup */}
         <div className="w-full flex justify-center transform scale-100 sm:scale-105 md:scale-110 transition-transform">
           <DiceCup
@@ -392,21 +390,21 @@ export default function GameTable({
       </main>
 
       {/* 4. Single Floating Status Pill */}
-      <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-md border border-amber-400/80 text-amber-300 px-6 py-2 rounded-full text-xs sm:text-sm font-bold shadow-xl z-30 pointer-events-none whitespace-nowrap flex items-center gap-2">
+      <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-md border border-amber-400/80 text-amber-300 px-5 py-2 rounded-full text-xs sm:text-sm font-bold shadow-xl z-30 pointer-events-none whitespace-nowrap flex items-center gap-2 max-w-[92vw] truncate">
         {isSpectator ? (
-          <span>👁️ Modo Espectador: Observando a {currentPlayer.name}...</span>
+          <span className="truncate">👁️ Observando a {currentPlayer.name}...</span>
         ) : isMyTurn ? (
           turnState.hasRolledThisTurn ? (
             turnState.rollsLeft > 0 ? (
-              <span>👇 Toca dados para Guardar o Arrastra/Agita para Lanzar</span>
+              <span className="truncate">👇 Toca dados para Guardar o Arrastra/Agita para Lanzar</span>
             ) : (
-              <span>⚠️ Sin tiros. Abre "Mi Tablero" arriba para anotar o tachar</span>
+              <span className="truncate">⚠️ Sin tiros. Abre "Mi Tablero" arriba para anotar o tachar</span>
             )
           ) : (
-            <span>🎲 ¡Es tu turno! Arrastra el Cacho o agita tu móvil</span>
+            <span className="truncate">🎲 ¡Es tu turno! Arrastra el Cacho o agita tu móvil</span>
           )
         ) : (
-          <span>⏳ Turno de {currentPlayer.name}...</span>
+          <span className="truncate">⏳ Turno de {currentPlayer.name}...</span>
         )}
       </div>
 

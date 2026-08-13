@@ -227,8 +227,6 @@ export default function DiceCup({
   const activeCupPos = isMyTurn ? cupPos : remoteShake.cupPos;
 
   // Dice state definitions:
-  // - Top Dock: Shows dice indices that were locked into Zona Segura
-  // - Table Tray: Shows active dice indices for the current roll
   const isDiceInCup = isCupShaking || !hasRolledThisTurn;
   
   // Docked indices (in top Zona Segura)
@@ -314,7 +312,7 @@ export default function DiceCup({
         )}
       </div>
 
-      {/* 2.5D Cacho Leather Cup Graphic (Renders Shaking Live for Spectators!) */}
+      {/* 2.5D Cacho Leather Cup Graphic */}
       {(isDiceInCup || rollsLeft > 0) && (
         <div
           onMouseDown={(e) => isMyTurn && startDragGesture(e.clientX, e.clientY)}
@@ -328,7 +326,7 @@ export default function DiceCup({
           title={canRollNow ? 'Mantén presionado y agita el vaso para tirar' : 'Cubilete Cacho'}
         >
           <div
-            className={`w-36 h-40 sm:w-44 sm:h-48 rounded-b-[2.5rem] rounded-t-xl bg-gradient-to-b from-[#54250c] via-[#381606] to-[#1a0802] border-4 border-amber-900/90 shadow-2d-cup flex flex-col items-center justify-between transition-transform ${
+            className={`w-32 h-36 sm:w-44 sm:h-48 rounded-b-[2.5rem] rounded-t-xl bg-gradient-to-b from-[#54250c] via-[#381606] to-[#1a0802] border-4 border-amber-900/90 shadow-2d-cup flex flex-col items-center justify-between transition-transform ${
               isCupShaking ? 'animate-cup-shake scale-110' : ''
             }`}
           >
@@ -339,10 +337,10 @@ export default function DiceCup({
 
             {/* Golden Casino Emblem */}
             <div className="my-auto text-center px-2">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-1 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center shadow-gold-glow">
-                <Dices className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400 stroke-[2.5]" />
+              <div className="w-9 h-9 sm:w-12 sm:h-12 mx-auto mb-1 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center shadow-gold-glow">
+                <Dices className="w-5 h-5 sm:w-7 sm:h-7 text-amber-400 stroke-[2.5]" />
               </div>
-              <span className="text-2xl sm:text-3xl font-black font-cinzel text-gold-shine tracking-widest drop-shadow-lg block">
+              <span className="text-xl sm:text-3xl font-black font-cinzel text-gold-shine tracking-widest drop-shadow-lg block">
                 CACHO
               </span>
             </div>
@@ -353,7 +351,7 @@ export default function DiceCup({
             </div>
           </div>
 
-          {/* Clean Short Helper Badge */}
+          {/* Helper Badge ONLY for active player when ready to roll */}
           {canRollNow && (
             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap z-40">
               <span className="px-3.5 py-1 rounded-full bg-black/90 backdrop-blur-md text-amber-300 border border-amber-400/90 text-xs font-bold flex items-center gap-1.5 shadow-gold-glow animate-pulse">
@@ -363,7 +361,7 @@ export default function DiceCup({
             </div>
           )}
 
-          {/* Spectator Watching Cup Shake Notice */}
+          {/* Remote Cup Shake Notice (For non-active players & spectators when shaking in live broadcast) */}
           {!isMyTurn && isCupShaking && (
             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap z-40">
               <span className="px-3.5 py-1 rounded-full bg-purple-950/90 backdrop-blur-md text-purple-200 border border-purple-400 text-xs font-black flex items-center gap-1.5 shadow-xl animate-bounce-short">
@@ -374,17 +372,17 @@ export default function DiceCup({
         </div>
       )}
 
-      {/* 2. Active Dice Table Tray (DADOS DEL TIRO ACTUAL) */}
-      {!isDiceInCup && hasRolledThisTurn && activeTableIndices.length > 0 ? (
-        <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-4 sm:p-5 border border-emerald-500/20 shadow-2xl z-10 animate-fade-in">
-          <div className="text-center mb-3">
-            <span className="text-[11px] uppercase tracking-widest text-emerald-300 font-bold font-mono">
+      {/* 2. Active Dice Table Tray */}
+      {!isDiceInCup && hasRolledThisTurn && activeTableIndices.length > 0 && (
+        <div className="w-full max-w-lg glass-panel-luxury rounded-3xl p-3.5 sm:p-5 border border-emerald-500/20 shadow-2xl z-10 animate-fade-in">
+          <div className="text-center mb-2.5">
+            <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-emerald-300 font-bold font-mono">
               {isMyTurn ? '🔒 Toca para guardar (al agitar van a la zona segura)' : '🎲 Dados de la mesa en vivo'}
             </span>
           </div>
 
           {/* Active Table Dice */}
-          <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4.5">
+          <div className="flex flex-wrap justify-center items-center gap-2.5 sm:gap-4.5">
             {activeTableIndices.map((idx) => {
               const val = dice[idx];
               const isKept = keptDice[idx];
@@ -400,7 +398,7 @@ export default function DiceCup({
                   title={isKept ? 'Dado Guardado' : 'Dado en Mesa'}
                 >
                   <div
-                    className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 aspect-square shrink-0 rounded-2xl p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform ${
+                    className={`w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 aspect-square shrink-0 rounded-2xl p-1.5 sm:p-2 grid grid-cols-3 grid-rows-3 items-center justify-items-center transition-all transform ${
                       isKept
                         ? 'bg-gradient-to-br from-amber-100 via-amber-200 to-amber-400 text-zinc-950 border-2 sm:border-3 border-amber-400 shadow-2d-die-kept scale-105 ring-2 sm:ring-4 ring-amber-400/60'
                         : 'bg-gradient-to-br from-amber-50 via-zinc-100 to-zinc-300 text-zinc-900 border-2 border-zinc-300 shadow-2d-die hover:border-amber-400/80'
@@ -409,14 +407,14 @@ export default function DiceCup({
                     {PIP_POSITIONS[val]?.map((posClass, pIdx) => (
                       <span
                         key={pIdx}
-                        className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 aspect-square rounded-full shrink-0 ${posClass} ${
+                        className={`w-2 h-2 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 aspect-square rounded-full shrink-0 ${posClass} ${
                           isKept ? 'bg-amber-950 die-pip-sunken-kept' : 'bg-zinc-900 die-pip-sunken'
                         }`}
                       />
                     ))}
                   </div>
 
-                  <div className="mt-1.5 flex items-center justify-center">
+                  <div className="mt-1 flex items-center justify-center">
                     {isKept ? (
                       <span className="px-2 py-0.5 rounded bg-amber-500/30 text-amber-300 border border-amber-400/60 text-[9px] sm:text-[10px] font-black flex items-center gap-0.5 shadow-sm">
                         <Lock className="w-2.5 h-2.5 text-amber-400" /> Guardado
@@ -432,14 +430,7 @@ export default function DiceCup({
             })}
           </div>
         </div>
-      ) : !hasRolledThisTurn ? (
-        /* Prompt before initial roll */
-        <div className="text-center mt-2 z-10">
-          <span className="text-xs sm:text-sm font-bold font-cinzel text-gold-shine tracking-wider bg-black/85 px-4 py-1.5 rounded-full border border-amber-400/70 shadow-gold-glow">
-            {isMyTurn ? '🎲 Agita o arrastra el Cacho para tirar' : '🎲 Esperando lanzamiento...'}
-          </span>
-        </div>
-      ) : null}
+      )}
     </div>
   );
 }
