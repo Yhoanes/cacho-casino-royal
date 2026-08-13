@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LogOut, Dices, ScrollText, BarChart3, DoorOpen, LayoutGrid, Eye, UserPlus, Mic } from 'lucide-react';
+import { LogOut, Dices, ScrollText, BarChart3, DoorOpen, LayoutGrid, Eye, UserPlus, Mic, Share2, Check } from 'lucide-react';
 import DiceCup from './DiceCup';
 import ActionPanel from './ActionPanel';
 import VictoryModal from './VictoryModal';
@@ -37,6 +37,7 @@ export default function GameTable({
   const [isMyBoardModalOpen, setIsMyBoardModalOpen] = useState(false);
   const [showCantoResolutionOverlay, setShowCantoResolutionOverlay] = useState(false);
   const [pendingCantoData, setPendingCantoData] = useState(null);
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   // WebRTC P2P Voice Chat Hook
   const {
@@ -76,6 +77,30 @@ export default function GameTable({
       setShowCantoResolutionOverlay(false);
     }
   }, [turnState?.cantoResolution?.active]);
+
+  const handleCopyRoomInvite = () => {
+    const roomCode = room?.code || '';
+    const inviteUrl = `${window.location.origin}/?room=${roomCode}`;
+    const inviteText = `🎲 ¡Únete a mi partida de Cacho Casino Royal! Código de sala: ${roomCode}\nEntra gratis jugando aquí: ${inviteUrl}`;
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(inviteText);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = inviteText;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+    } catch (err) {
+      console.warn('Clipboard copy failed:', err);
+    }
+
+    setCopiedInvite(true);
+    setTimeout(() => setCopiedInvite(false), 3000);
+  };
 
   // Helper to push new item to user's avatar feed
   const pushToAvatarFeed = (userId, type, value) => {
@@ -244,8 +269,28 @@ export default function GameTable({
         )}
       </div>
 
-      {/* 2. HUD Top-Right Controls Bar (Voice Call, Spectator Switch, Mi Tablero, Historial, Espiar, Salir) */}
+      {/* 2. HUD Top-Right Controls Bar (Share Code, Voice Call, Spectator Switch, Mi Tablero, Historial, Espiar, Salir) */}
       <div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex items-center gap-2 sm:gap-3 z-50">
+        {/* Copy Room Code & WhatsApp Share Pill (📋) */}
+        <button
+          type="button"
+          onClick={handleCopyRoomInvite}
+          className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-zinc-950 font-extrabold text-xs transition-all shadow-gold-glow hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer border border-yellow-200"
+          title="Copiar Código de Sala y Link para WhatsApp"
+        >
+          {copiedInvite ? (
+            <>
+              <Check className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-950 stroke-[3]" />
+              <span className="font-black text-emerald-950">¡Copiado!</span>
+            </>
+          ) : (
+            <>
+              <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-950 stroke-[2.5]" />
+              <span className="font-cinzel text-xs tracking-wider">Sala: {room.code}</span>
+            </>
+          )}
+        </button>
+
         {/* WebRTC Live Audio Voice Controls Pill */}
         <VoiceChatControls
           isAudioConnected={isAudioConnected}

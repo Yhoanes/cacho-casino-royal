@@ -58,7 +58,25 @@ function setupSocketHandlers(io) {
       }
     });
 
-    // 5. WebRTC P2P Audio Signaling Handlers
+    // 5. WebRTC Mesh P2P Audio Signaling Handlers (Full Room Audio for Players & Spectators)
+    socket.on('webrtc_join_audio', ({ roomCode, userId }) => {
+      if (!roomCode) return;
+      const cleanCode = roomCode.toUpperCase();
+      socket.to(cleanCode).emit('webrtc_peer_joined', {
+        socketId: socket.id,
+        userId,
+      });
+    });
+
+    socket.on('webrtc_leave_audio', ({ roomCode, userId }) => {
+      if (!roomCode) return;
+      const cleanCode = roomCode.toUpperCase();
+      socket.to(cleanCode).emit('webrtc_peer_left', {
+        socketId: socket.id,
+        userId,
+      });
+    });
+
     socket.on('webrtc_offer', ({ targetSocketId, offer, senderUserId }) => {
       if (!targetSocketId || !offer) return;
       io.to(targetSocketId).emit('webrtc_offer', {
